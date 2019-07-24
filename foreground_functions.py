@@ -2,6 +2,7 @@
 import numpy as np
 import healpy as hp
 from pyshtools.utils import Wigner3j
+pi = 3.141592653589793238462
 
 #---------POWER LAW DEFINITION-----------------------------------------
 #defines the ell power law that we will use for the A_s spectrum
@@ -20,7 +21,7 @@ def normed_cmb_thermo_units(nu):
 def normed_synch(nu, nu0, beta):
     if beta is not np.array:
         beta = np.array(beta)
-    return (nu/nu0)**(2.+beta[..., np.newaxis])
+    return np.power(nu/nu0, 2.+beta[..., np.newaxis])
 
 def scale_synch(nu, nu0 ,beta):
     unit = normed_synch(nu, nu0,beta) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
@@ -36,15 +37,11 @@ def generate_map(ells_max, A, alpha, beta_sigma, freqs, nu0):
     #pcls[1] = 1 #don't need this as ells start at 1 (to avoid  division by 0)
     nside = 128
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
-    check_pcls = hp.anafast(amp_map)
     #---beta map---------
-    bcls = beta_sigma * np.ones_like(ells)  #makes a vector [1.5e-6, ... , 1.5e-6] with the same shape as the ells
+    bcls = beta_sigma * np.ones_like(ells)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) + 3.2)
-    #drawn out beta cls
-    check_bcls = hp.anafast(beta_map)
-
     #---composite map----
     sed_scaling_beta = scale_synch(freqs, nu0, beta_map).T
 
@@ -62,14 +59,12 @@ def generate_map(ells_max, A, alpha, beta_sigma, freqs, nu0):
 
 #---------------------------------------------------------------------
 #---------GET WIGNER SUM PART OF EQUATION 35 FOR 1x1moment-------------
-def get_wigner_sum(ell_sum, ell_physical, cls_1, cls_2):
+def get_wigner_sum(ell_sum, cls_1, cls_2):
     #ell_sum       == upper limit on sum of ell1 ell2
     #ell_physical  == upper ell physically discernable
     #cls_1,2       == the input c_ell for the amplitude and varition (beta) map
     #order of input for cls_1,2 doesn't matter as is symmetric in both
 
-    #define the relavent ells arrays
-    ells = np.arange(1, ell_physical + 1) #the physical ells to be plotted
     ells_ext = np.arange(1, ell_sum + 1)  #the ells to be summed over
 
     #define an empty array to store the wigner sum in
