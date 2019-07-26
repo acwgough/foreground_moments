@@ -2,22 +2,25 @@
 #-------IMPORT NEEDED PACKAGES---------------------------------------
 #=====================================================================
 import numpy as np
+import matplotlib.pyplot as plt
 import healpy as hp
 from pyshtools.utils import Wigner3j
 from math import pi
+import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
 
 #define default parameters for functions
 nside_default = 128
+ell_max_default = 3*nside_default
 A_default = 1.7e3
 alpha_default = -3.0
 beta_default = -3.2
 beta_sigma_default = 1.5e-6
 nu0_default = 2.3e9
-ell_max_default = 384
+
 
 #for power law beta
 A_beta_default = 1e-6
-gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
+gamma_default = -2.1 #must be less than -2 for convergence in 0x2 term
 
 
 #=====================================================================
@@ -148,7 +151,7 @@ def auto0x0(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, al
     ells = np.arange(0,ell_max)
     pcls = A * powerlaw(ells, alpha)
     moment0x0 = np.zeros((len(freqs),len(ells)))
-    for i in range(len(moment0x0[:,0])):
+    for i in range(len(moment0x0[:])):
         moment0x0[i] = pcls * sed_scaling[i]**2
     return moment0x0
 
@@ -197,28 +200,65 @@ def get_wigner_sum(ell_sum, amp_cls, beta_cls):
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
-def auto1x1(freqs, amp_cls, beta_cls, beta_0=beta_default, ell_max=ell_max_default, nu0=nu0_default):
+def auto1x1(freqs, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     ells = np.arange(0,ell_max)
     moment1x1 = np.zeros((len(freqs),len(ells)))
-    wignersum = get_wigner_sum(ell_max, amp_cls, beta_cls)
-    for i in range(len(moment1x1[:,0])):
+    pcls, check_pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    bcls, check_bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
+    wignersum = get_wigner_sum(ell_max, pcls, bcls)
+    for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
 
     return moment1x1
 
 
+#---------DEFINE THE 0X2 MOMENT FOR AUTO SPECTRA------------------------
+#this assumes a power law for beta
+def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta_0=beta_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
+    sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
+    pcls, check_pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    ells = np.arange(0,ell_max)
+    moment0x2 = np.zeros((len(freqs),len(ells)))
+    #the sum part becomes
+    sum = 2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3
+    #multiply by the prefactors of the sum
+    sum = A_beta / (4 * pi * 80**gamma) * sum
+    for i in range(len(moment0x2[:])):
+        moment0x2[i] = np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * pcls * sum
+    return moment0x2
 
 
-# synch_cls = A_BB * ff.powerlaw(extended_ells, alpha_BB)
-# synch_cls[0] = 0
-# beta_cls = beta_sigma * ones_like(extended_ells)
-#
-# wignersum_384 = ff.get_wigner_sum(ell_sum_384, synch_cls, beta_cls)
-# # wignersum_800 = ff.get_wigner_sum(ell_sum_800, synch_cls, beta_cls)
-#
-# moment1x1_384 = np.zeros((len(freqs),len(ells)))
-# # moment1x1_800 = np.zeros((len(freqs),len(ells)))
-#
-# for i in range(len(moment1x1_384[:,i])):
-#     moment1x1_384[i] =  log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum_384[:Lmax]
+
+
+#---------GET THE POWER SPECTRUM PLOTS----------------------------------
+def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
+    ells = np.arange(0,ell_max)
+    moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
+    moment1x1 = auto1x1(freqs, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
+    moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, A_beta=A_beta, gamma=gamma, nside=nside)
+
+    newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
+
+    fig = plt.figure(figsize=(11,7))
+    st = fig.suptitle(r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
+
+    for i in range(len(freqs)):
+        plt.subplot(len(freqs)/2,2,i+1)
+        plt.semilogy(ells, moment0x0[i], label='0x0')
+        # plt.semilogy(ells, moment1x1[i], label='1x1')
+        # plt.semilogy(ells, moment0x2[i], label='0x2')
+        plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+        # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+        plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
+        plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
+
+        plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
+        plt.xlabel(r'$\ell$')
+        plt.ylabel(r'$C_\ell$')
+        plt.legend()
+        fig.tight_layout()
+        st.set_y(0.95)
+        fig.subplots_adjust(top=0.85)
+    plt.show()
+    return None
