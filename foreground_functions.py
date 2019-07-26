@@ -129,7 +129,7 @@ def realisation(N, freqs, ell_max=ell_max_default):
     instance = np.zeros((N,len(ells),len(freqs)))
     #instance[0,:,i] picks out the 0th realisation of the ith frequency
     for i in range(N):
-        maps = generate_map_full(freqs)
+        maps = map_full_white(freqs)
         for j in range(len(freqs)):
             instance[i,:,j] = hp.anafast(maps[j])
     return instance
