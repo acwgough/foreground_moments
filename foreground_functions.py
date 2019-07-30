@@ -15,7 +15,7 @@ A_default = 1.7e3
 alpha_default = -3.0
 beta_default = -3.2
 beta_sigma_default = 1.5e-6
-nu0_default = 2.3e9
+nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choose 95 GHz for best convergences
 
 
 #for power law beta
@@ -30,8 +30,8 @@ gamma_default = -2.1 #must be less than -2 for convergence in 0x2 term
 def powerlaw(ell, alpha):
     #set this to power law everything except the first two elements, and set the
     #first two elements to 0
-    power = np.arange(len(ell), dtype=float)
-    power[2:] = (power[2:]/ 80.)**alpha
+    power = np.zeros(len(ell))
+    power[2:] = (ell[2:]/ 80.)**alpha
     power[0] = 0
     power[1] = 0
     return power
@@ -68,8 +68,8 @@ def map_amp(ell_max=ell_max_default, A=A_default, alpha=alpha_default, nside=nsi
     ells = np.arange(0,ell_max)
     pcls = A * powerlaw(ells, alpha)
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
-    check_pcls = hp.anafast(amp_map)
-    return pcls, check_pcls, amp_map
+    #check_pcls = hp.anafast(amp_map)
+    return pcls, amp_map
 
 
 #-------generate beta map with uniform power spectrum------------------
@@ -81,8 +81,8 @@ def map_beta(ell_max=ell_max_default, sigma=beta_sigma_default, beta_0=beta_defa
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta_0)
-    check_bcls = hp.anafast(beta_map)
-    return bcls, check_bcls, beta_map
+    # check_bcls = hp.anafast(beta_map)
+    return bcls, beta_map
 
 
 #--------generate power law beta----------------------------------------
@@ -92,16 +92,16 @@ def map_power_beta(ell_max=ell_max_default, A_beta=A_beta_default, gamma=gamma_d
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta_0)
-    check_bcls = hp.anafast(beta_map)
-    return bcls, check_bcls, beta_map
+    # check_bcls = hp.anafast(beta_map)
+    return bcls, beta_map
 
 
 
 #-------function to generate series of frequency maps with constant C_ell^beta/white noise----
 #-------does not return the c_ells, just the maps themselves
 def map_full_white(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, beta_sigma=beta_sigma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
-    pcls, check_pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, check_bcls, beta_map = map_beta(ell_max=ell_max, sigma=beta_sigma, beta_0=beta_0, nside=nside) #why does it not pick up on the beta_sigma???
+    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    bcls, beta_map = map_beta(ell_max=ell_max, sigma=beta_sigma, beta_0=beta_0, nside=nside)
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
     newmaps_beta = amp_map * sed_scaling_beta
@@ -110,23 +110,17 @@ def map_full_white(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
 def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
-#this is currently failing, giving a runtime warning when calculating the SED. Should be able to do this with the generate_maps that I've
-#already defined, but not working so try manually...
-    pcls, check_pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, check_bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
-
+    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
     newmaps_beta = amp_map * sed_scaling_beta
     return newmaps_beta
-    # print('SED shape = ' + str(sed_scaling_beta.shape))
-    # print('amp map shape = ' + str(amp_map.shape))
-    #
-    # return pcls
 
 
 
-#-------function to make many realisations of the same map------------------------
+
+#-------function to make many realisations of the same white noise map------------------------
 def realisation(N, freqs, ell_max=ell_max_default):
     ells = np.arange(0, ell_max)
     instance = np.zeros((N,len(ells),len(freqs)))
@@ -137,6 +131,16 @@ def realisation(N, freqs, ell_max=ell_max_default):
             instance[i,:,j] = hp.anafast(maps[j])
     return instance
 
+
+#--------function to make many realisations of the same power map----------------------
+def realisation_power(N, freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
+    ells = np.arange(0,ell_max)
+    realisation = np.zeros((N, len(ells), len(freqs)))
+    for i in range(N):
+        maps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
+        for j in range(len(freqs)):
+            realisation[i,:,j] = hp.anafast(maps[j])
+    return realisation
 
 
 #=====================================================================
@@ -204,8 +208,8 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamm
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     ells = np.arange(0,ell_max)
     moment1x1 = np.zeros((len(freqs),len(ells)))
-    pcls, check_pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, check_bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
+    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
     wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
@@ -217,7 +221,7 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamm
 #this assumes a power law for beta
 def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta_0=beta_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
-    pcls, check_pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
     ells = np.arange(0,ell_max)
     moment0x2 = np.zeros((len(freqs),len(ells)))
     #the sum part becomes
@@ -232,7 +236,7 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 
 
 #---------GET THE POWER SPECTRUM PLOTS----------------------------------
-def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
+def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default, realisation=False, N=10):
     ells = np.arange(0,ell_max)
     moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
@@ -240,25 +244,58 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
 
     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
 
-    fig = plt.figure(figsize=(11,7))
-    st = fig.suptitle(r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
 
-    for i in range(len(freqs)):
-        plt.subplot(len(freqs)/2,2,i+1)
-        plt.semilogy(ells, moment0x0[i], label='0x0')
-        # plt.semilogy(ells, moment1x1[i], label='1x1')
-        # plt.semilogy(ells, moment0x2[i], label='0x2')
-        plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
-        # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
-        plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
-        plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
+    if realisation==True:
+        matrix = realisation_power(N, freqs)
+        mean_ps = np.mean(matrix, 0)
 
-        plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
-        plt.xlabel(r'$\ell$')
-        plt.ylabel(r'$C_\ell$')
-        plt.legend()
-        fig.tight_layout()
-        st.set_y(0.95)
-        fig.subplots_adjust(top=0.85)
-    plt.show()
+        fig = plt.figure(figsize=(11,28))
+        st = fig.suptitle(r'N=' + str(N) + r' realisations, $\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
+
+        for i in range(len(freqs)):
+            plt.subplot(len(freqs),1,i+1)
+            for j in range(N):
+                plt.semilogy(matrix[j,:,i], 'k', alpha = 0.2*10/N+0.1, lw=.5)
+            plt.semilogy(mean_ps[:,i], 'r', label='mean PS')
+            plt.semilogy(ells, moment0x0[i], label='0x0')
+            # plt.semilogy(ells, moment1x1[i], label='1x1')
+            # plt.semilogy(ells, moment0x2[i], label='0x2')
+            # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+            # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+            plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'g',label='0x0 + 1x1 + 0x2')
+            # plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
+
+            plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
+            plt.xlabel(r'$\ell$')
+            plt.ylabel(r'$C_\ell$')
+            plt.legend()
+            #space subplots out better
+            fig.tight_layout()
+            # st.set_y(0.95)
+            fig.subplots_adjust(top=0.95)
+        plt.show()
+
+    else:
+        fig = plt.figure(figsize=(11,7))
+        st = fig.suptitle(r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
+
+        for i in range(len(freqs)):
+            plt.subplot(len(freqs)/2,2,i+1)
+            plt.semilogy(ells, moment0x0[i], label='0x0')
+            plt.semilogy(ells, moment1x1[i], label='1x1')
+            plt.semilogy(ells, moment0x2[i], label='0x2')
+            # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+            # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+            plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
+            plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
+
+            plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
+            plt.xlabel(r'$\ell$')
+            plt.ylabel(r'$C_\ell$')
+            plt.legend()
+            #space subplots out better
+            fig.tight_layout()
+            st.set_y(0.95)
+            fig.subplots_adjust(top=0.85)
+        plt.show()
     return None
