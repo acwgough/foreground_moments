@@ -236,66 +236,130 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 
 
 #---------GET THE POWER SPECTRUM PLOTS----------------------------------
-def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default, realisation=False, N=10):
+# def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default, realisation=False, N=10):
+#     ells = np.arange(0,ell_max)
+#     moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
+#     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
+#     moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, A_beta=A_beta, gamma=gamma, nside=nside)
+#
+#     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
+#
+#
+#     if realisation==True:
+#         matrix = realisation_power(N, freqs)
+#         mean_ps = np.mean(matrix, 0)
+#
+#         fig = plt.figure(figsize=(11,28))
+#         st = fig.suptitle(r'N=' + str(N) + r' realisations, $\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
+#
+#         for i in range(len(freqs)):
+#             plt.subplot(len(freqs),1,i+1)
+#             for j in range(N):
+#                 plt.semilogy(matrix[j,:,i], 'k', alpha = 0.2*10/N+0.1, lw=.5)
+#             plt.semilogy(mean_ps[:,i], 'r', label='mean PS')
+#             plt.semilogy(ells, moment0x0[i], label='0x0')
+#             # plt.semilogy(ells, moment1x1[i], label='1x1')
+#             # plt.semilogy(ells, moment0x2[i], label='0x2')
+#             # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+#             # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+#             plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'g',label='0x0 + 1x1 + 0x2')
+#             # plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
+#
+#             plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
+#             plt.xlabel(r'$\ell$')
+#             plt.ylabel(r'$C_\ell$')
+#             plt.legend()
+#             #space subplots out better
+#             fig.tight_layout()
+#             # st.set_y(0.95)
+#             fig.subplots_adjust(top=0.95)
+#         plt.show()
+#
+#     else:
+#         fig = plt.figure(figsize=(11,7))
+#         st = fig.suptitle(r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
+#
+#         for i in range(len(freqs)):
+#             plt.subplot(len(freqs)/2,2,i+1)
+#             plt.semilogy(ells, moment0x0[i], label='0x0')
+#             plt.semilogy(ells, moment1x1[i], label='1x1')
+#             plt.semilogy(ells, moment0x2[i], label='0x2')
+#             # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+#             # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+#             plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
+#             plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
+#
+#             plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
+#             plt.xlabel(r'$\ell$')
+#             plt.ylabel(r'$C_\ell$')
+#             plt.legend()
+#             plt.text(60, 0.025, r'parameters')
+#             #space subplots out better
+#             fig.tight_layout()
+#             st.set_y(0.95)
+#             fig.subplots_adjust(top=0.85)
+#         plt.show()
+#     return None
+
+
+#this version takes out the realisations, as we'll calculate those averages separately and then pull them in.
+#this version also avoids the quadruple subplot so we can put the residuals on the bottom of each plot.
+def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
     ells = np.arange(0,ell_max)
     moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
     moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, A_beta=A_beta, gamma=gamma, nside=nside)
-
+    model = moment0x0+moment1x1+moment0x2
     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
 
+    for i in range(len(freqs)):
+        anafast=hp.anafast(newmaps[i])
+        fig = plt.figure(i, figsize=(11,7))
+        frame1=fig.add_axes((.1,.5,.8,.6))
+        #xstart, ystart, xend, yend [units are fraction of the image frame, from bottom left corner]
+        plt.semilogy(ells, moment0x0[i], label='0x0')
+        plt.semilogy(ells, moment1x1[i], label='1x1')
+        plt.semilogy(ells, moment0x2[i], label='0x2')
+        # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+        # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+        plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
+        plt.semilogy(ells, anafast, 'r', label='anafast')
+        frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
 
-    if realisation==True:
-        matrix = realisation_power(N, freqs)
-        mean_ps = np.mean(matrix, 0)
+        plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.' + '\n' + r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz')
+        # plt.xlabel(r'$\ell$')
+        plt.ylabel(r'$C_\ell$')
+        plt.legend()
+        plt.grid()
 
-        fig = plt.figure(figsize=(11,28))
-        st = fig.suptitle(r'N=' + str(N) + r' realisations, $\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
+        #ratio plot
+        ratio = anafast/model[i]
+        frame2=fig.add_axes((.1,.3,.8,.2))
+        plt.plot(ells,ratio, '.')
+        plt.plot(ells, np.ones_like(ells))
+        frame2.set_xticklabels([]) #Remove x-tic labels for the first frame
+        plt.ylabel('data/model')
+        plt.grid()
 
-        for i in range(len(freqs)):
-            plt.subplot(len(freqs),1,i+1)
-            for j in range(N):
-                plt.semilogy(matrix[j,:,i], 'k', alpha = 0.2*10/N+0.1, lw=.5)
-            plt.semilogy(mean_ps[:,i], 'r', label='mean PS')
-            plt.semilogy(ells, moment0x0[i], label='0x0')
-            # plt.semilogy(ells, moment1x1[i], label='1x1')
-            # plt.semilogy(ells, moment0x2[i], label='0x2')
-            # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
-            # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
-            plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'g',label='0x0 + 1x1 + 0x2')
-            # plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
-
-            plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
-            plt.xlabel(r'$\ell$')
-            plt.ylabel(r'$C_\ell$')
-            plt.legend()
-            #space subplots out better
-            fig.tight_layout()
-            # st.set_y(0.95)
-            fig.subplots_adjust(top=0.95)
-        plt.show()
-
-    else:
-        fig = plt.figure(figsize=(11,7))
-        st = fig.suptitle(r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz', fontsize=14)
-
-        for i in range(len(freqs)):
-            plt.subplot(len(freqs)/2,2,i+1)
-            plt.semilogy(ells, moment0x0[i], label='0x0')
-            plt.semilogy(ells, moment1x1[i], label='1x1')
-            plt.semilogy(ells, moment0x2[i], label='0x2')
-            # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
-            # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
-            plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
-            plt.semilogy(ells, hp.anafast(newmaps[i]), 'r', label='anafast')
-
-            plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.')
-            plt.xlabel(r'$\ell$')
-            plt.ylabel(r'$C_\ell$')
-            plt.legend()
-            #space subplots out better
-            fig.tight_layout()
-            st.set_y(0.95)
-            fig.subplots_adjust(top=0.85)
-        plt.show()
+        #residuals plot
+        resid = (anafast-model[i])**2
+        frame3=fig.add_axes((.1,.1,.8,.2))
+        plt.semilogy(ells, resid, '.')
+        plt.ylabel(r'$\mathrm{resid}^2$')
+        plt.xlabel(r'$\ell$')
+        plt.grid()
+    plt.show()
     return None
+
+
+
+
+
+
+#--------get chi_square value for a fit from set of data and the model------
+def get_chi_square(data, model):
+    resid = data-model
+    chi_square = 0
+    for i in range(len(resid)):
+        chi_square += resid[i]**2
+    return chi_square
