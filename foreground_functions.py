@@ -302,8 +302,20 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 #     return None
 
 
+#--------get chi_square value for a fit from set of data and the model------
+def get_chi_square(data, model):
+    resid = data-model
+    chi_square = 0
+    for i in range(len(resid)):
+        chi_square += resid[i]**2
+    return chi_square
+
+
+
 #this version takes out the realisations, as we'll calculate those averages separately and then pull them in.
 #this version also avoids the quadruple subplot so we can put the residuals on the bottom of each plot.
+
+#TODO: work out why the ticks on the labels are overlapping, clean up plots etc.
 def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
     ells = np.arange(0,ell_max)
     moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
@@ -312,9 +324,13 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
     model = moment0x0+moment1x1+moment0x2
     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
 
+
+
     for i in range(len(freqs)):
         anafast=hp.anafast(newmaps[i])
+        chi_square = get_chi_square(anafast,model[i])
         fig = plt.figure(i, figsize=(11,7))
+        ax = plt.subplot(111)
         frame1=fig.add_axes((.1,.5,.8,.6))
         #xstart, ystart, xend, yend [units are fraction of the image frame, from bottom left corner]
         plt.semilogy(ells, moment0x0[i], label='0x0')
@@ -325,7 +341,10 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
         plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
         plt.semilogy(ells, anafast, 'r', label='anafast')
         frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
-
+        # plt.text(0.5,0.95,r'0.5, 0.95',fontsize=14, transform=ax.transAxes)
+        # plt.text(0.5,1.0,r'0.5, 1.0',fontsize=14, transform=ax.transAxes)
+        # plt.text(0.5,1.2,r'0.5, 1.2',fontsize=14, transform=ax.transAxes)
+        plt.text(0.65,1.23,r'$\chi^2 = $' + str(format(chi_square, '.3e')), transform=ax.transAxes, bbox=dict(facecolor='white',edgecolor='0.8',alpha=0.8))
         plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.' + '\n' + r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz')
         # plt.xlabel(r'$\ell$')
         plt.ylabel(r'$C_\ell$')
@@ -337,7 +356,7 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
         frame2=fig.add_axes((.1,.3,.8,.2))
         plt.plot(ells,ratio, '.')
         plt.plot(ells, np.ones_like(ells))
-        frame2.set_xticklabels([]) #Remove x-tic labels for the first frame
+        frame2.set_xticklabels([]) #Remove x-tic labels for the 2nd frame
         plt.ylabel('data/model')
         plt.grid()
 
@@ -350,16 +369,3 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
         plt.grid()
     plt.show()
     return None
-
-
-
-
-
-
-#--------get chi_square value for a fit from set of data and the model------
-def get_chi_square(data, model):
-    resid = data-model
-    chi_square = 0
-    for i in range(len(resid)):
-        chi_square += resid[i]**2
-    return chi_square
