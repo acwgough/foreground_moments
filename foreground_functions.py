@@ -19,7 +19,8 @@ nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choo
 
 
 #for power law beta
-A_beta_default = 1e-6
+crit = 2/np.log(10)
+sigma_default = crit/3
 gamma_default = -2.1 #must be less than -2 for convergence in 0x2 term
 
 
@@ -86,12 +87,18 @@ def map_beta(ell_max=ell_max_default, sigma=beta_sigma_default, beta_0=beta_defa
 
 
 #--------generate power law beta----------------------------------------
-def map_power_beta(ell_max=ell_max_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, nside=nside_default):
+def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta_0=beta_default, nside=nside_default):
     ells = np.arange(0,ell_max)
-    bcls = A_beta * powerlaw(ells, gamma)
+    bcls = powerlaw(ells, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
+    std = np.std(beta_map)
+    #update beta map to have the correct std dev
+    beta_map = beta_map * sigma / std
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta_0)
+
+    #update the beta_cls
+    bcls = bcls * (sigma/std)**2 #scaling the map scales the C_ell by te square factor
     # check_bcls = hp.anafast(beta_map)
     return bcls, beta_map
 
@@ -109,9 +116,9 @@ def map_full_white(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
-def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
+def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
+    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta_0=beta_0, nside=nside)
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
     newmaps_beta = amp_map * sed_scaling_beta
@@ -133,11 +140,11 @@ def realisation(N, freqs, ell_max=ell_max_default):
 
 
 #--------function to make many realisations of the same power map----------------------
-def realisation_power(N, freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
+def realisation_power(N, freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
     ells = np.arange(0,ell_max)
     realisation = np.zeros((N, len(ells), len(freqs)))
     for i in range(N):
-        maps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
+        maps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
         for j in range(len(freqs)):
             realisation[i,:,j] = hp.anafast(maps[j])
     return realisation
@@ -204,12 +211,12 @@ def get_wigner_sum(ell_sum, amp_cls, beta_cls):
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
-def auto1x1(freqs, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamma=gamma_default, beta_0=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
+def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta_0=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     ells = np.arange(0,ell_max)
     moment1x1 = np.zeros((len(freqs),len(ells)))
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, beta_map = map_power_beta(ell_max=ell_max, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nside=nside)
+    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta_0=beta_0, nside=nside)
     wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
@@ -219,14 +226,20 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, A_beta=A_beta_default, gamm
 
 #---------DEFINE THE 0X2 MOMENT FOR AUTO SPECTRA------------------------
 #this assumes a power law for beta
-def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta_0=beta_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
+def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta_0=beta_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta_0=beta_0, nside=nside)
+    # print(np.mean(beta_map))
+    # print(np.std(beta_map))
     ells = np.arange(0,ell_max)
     moment0x2 = np.zeros((len(freqs),len(ells)))
     #the sum part becomes
     sum = 2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3
     #multiply by the prefactors of the sum
+    #have to add due to rescaling the beta map to have same std.
+    A_beta = bcls[80]
+
     sum = A_beta / (4 * pi * 80**gamma) * sum
     for i in range(len(moment0x2[:])):
         moment0x2[i] = np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * pcls * sum
@@ -236,13 +249,13 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 
 
 #---------GET THE POWER SPECTRUM PLOTS----------------------------------
-# def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default, realisation=False, N=10):
+# def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default, realisation=False, N=10):
 #     ells = np.arange(0,ell_max)
 #     moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
-#     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
-#     moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, A_beta=A_beta, gamma=gamma, nside=nside)
+#     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
+#     moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, sigma=sigma, gamma=gamma, nside=nside)
 #
-#     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
+#     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
 #
 #
 #     if realisation==True:
@@ -306,8 +319,9 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 def get_chi_square(data, model):
     resid = data-model
     chi_square = 0
-    for i in range(len(resid)):
-        chi_square += resid[i]**2
+    for ell in range(len(resid)):
+        cosmic_var = 2/(2*ell+1) * data[ell]**2
+        chi_square += resid[ell]**2 / cosmic_var
     return chi_square
 
 
@@ -316,13 +330,13 @@ def get_chi_square(data, model):
 #this version also avoids the quadruple subplot so we can put the residuals on the bottom of each plot.
 
 #TODO: work out why the ticks on the labels are overlapping, clean up plots etc.
-def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, A_beta=A_beta_default, gamma=gamma_default, nside=nside_default):
+def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default):
     ells = np.arange(0,ell_max)
     moment0x0 = auto0x0(freqs, beta_0=beta_0, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
-    moment1x1 = auto1x1(freqs, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
-    moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, A_beta=A_beta, gamma=gamma, nside=nside)
+    moment1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta_0, ell_max=ell_max, nu0=nu0, nside=nside)
+    moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta_0=beta_0, sigma=sigma, gamma=gamma, nside=nside)
     model = moment0x0+moment1x1+moment0x2
-    newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, A_beta=A_beta, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
+    newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
 
 
 
@@ -344,8 +358,8 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
         # plt.text(0.5,0.95,r'0.5, 0.95',fontsize=14, transform=ax.transAxes)
         # plt.text(0.5,1.0,r'0.5, 1.0',fontsize=14, transform=ax.transAxes)
         # plt.text(0.5,1.2,r'0.5, 1.2',fontsize=14, transform=ax.transAxes)
-        plt.text(0.65,1.23,r'$\chi^2 = $' + str(format(chi_square, '.3e')), transform=ax.transAxes, bbox=dict(facecolor='white',edgecolor='0.8',alpha=0.8))
-        plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.' + '\n' + r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz')
+        plt.text(0.65,1.23,r'$\chi^2 = $' + str(format(chi_square, '.4g')), transform=ax.transAxes, bbox=dict(facecolor='white',edgecolor='0.8',alpha=0.8))
+        plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.' + '\n' + r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta_0$=' + str(np.round(beta_0,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r'$, \sigma$=' + str(np.round(sigma,2)) +r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz')
         # plt.xlabel(r'$\ell$')
         plt.ylabel(r'$C_\ell$')
         plt.legend()
@@ -369,3 +383,44 @@ def get_plots(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, 
         plt.grid()
     plt.show()
     return None
+
+
+#want to make a matrix that collects chi^2 values for different sets of parameters (input parameter arrays)
+#we can then slice and plot this to see how chi^2 varies with the parameters
+def chi2(freqs, alphas, betas, gammas, sigmas=sigma_default):
+    #make sure everything is an array
+    #the new axis means that these are now shape (1,) arrays
+    if type(alphas) == np.float64 or type(alphas) == int:
+        alphas = np.array(alphas)[np.newaxis]
+    if type(betas) == np.float64 or type(betas) == int:
+        betas = np.array(betas)[np.newaxis]
+    if type(gammas) == np.float64 or type(gammas) == int:
+        gammas = np.array(gammas)[np.newaxis]
+    if type(sigmas) == np.float64 or type(sigmas) == int:
+        sigmas = np.array(sigmas)[np.newaxis]
+    if type(freqs) == np.float64 or type(freqs) == int:
+        freqs = np.array(freqs)[np.newaxis]
+    # generate some data. For each element of this chi^2 matrix we need to make its own map
+
+    #set up the empty chi2 matrix
+    chi2 = np.zeros((len(freqs),len(alphas),len(betas),len(gammas),len(sigmas)))
+    #grab the individual elements and update the chi2 matrix
+    for alpha in alphas:
+        for beta in betas:
+            for gamma in gammas:
+                for sigma in sigmas:
+                    data_maps = map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta, nu0=nu0_default, nside=nside_default)
+                    mom0x0 = auto0x0(freqs, beta_0=beta, ell_max=ell_max_default, A=A_default, alpha=alpha, nu0=nu0_default)
+                    mom1x1 = auto1x1(freqs, A=A_default, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default)
+                    mom0x2 = auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta_0=beta_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default)
+                    model = mom0x0 + mom1x1 + mom0x2
+                    for i in range(len(freqs)):
+                        chi_square=0
+                        # print(data_maps[i].shape)
+                        cls = hp.anafast(data_maps[i])
+                        residual = cls[i]-model[i]
+
+                        for ell in range(len(residual)):
+                            cosmic_var = 2/(2*ell + 1) * cls[ell]
+                            chi_square += residual[ell]**2 / cosmic_var
+    return chi_square, chi2
