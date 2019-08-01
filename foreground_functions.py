@@ -119,9 +119,13 @@ def map_full_white(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
 def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta_0=beta_default, nu0=nu0_default, nside=nside_default):
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
     bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta_0=beta_0, nside=nside)
+
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
     newmaps_beta = amp_map * sed_scaling_beta
+    #if only one frequency entered, cut out one dimension of the array so it is just (npix,) not (1,npix,)
+    if len(newmaps_beta[:])==1:
+        newmaps_beta = newmaps_beta[0]
     return newmaps_beta
 
 
@@ -144,9 +148,14 @@ def realisation_power(N, freqs, ell_max=ell_max_default, A=A_default, alpha=alph
     ells = np.arange(0,ell_max)
     realisation = np.zeros((N, len(ells), len(freqs)))
     for i in range(N):
+        #printing progress for long runs.
+        if (i/N*100)%5==0:
+            print(str(np.round(i/N*100)) + '%')
+
         maps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta_0=beta_0, nu0=nu0, nside=nside)
         for j in range(len(freqs)):
             realisation[i,:,j] = hp.anafast(maps[j])
+    print('100%')
     return realisation
 
 
@@ -161,9 +170,16 @@ def auto0x0(freqs, beta_0=beta_default, ell_max=ell_max_default, A=A_default, al
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     ells = np.arange(0,ell_max)
     pcls = A * powerlaw(ells, alpha)
+    #allows for single frequencies to be entered
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
     moment0x0 = np.zeros((len(freqs),len(ells)))
     for i in range(len(moment0x0[:])):
         moment0x0[i] = pcls * sed_scaling[i]**2
+
+    if len(freqs)==1:
+        moment0x0 = moment0x0[0]
     return moment0x0
 
 #---------GET WIGNER SUM PART OF EQUATION 35 FOR 1x1moment-------------
@@ -214,6 +230,10 @@ def get_wigner_sum(ell_sum, amp_cls, beta_cls):
 def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta_0=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     ells = np.arange(0,ell_max)
+
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
     moment1x1 = np.zeros((len(freqs),len(ells)))
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
     bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta_0=beta_0, nside=nside)
@@ -221,6 +241,8 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
 
+    if len(freqs)==1:
+        moment1x1 = moment1x1[0]
     return moment1x1
 
 
@@ -230,9 +252,11 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
     sed_scaling = scale_synch(freqs, beta_0, nu0=nu0)
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
     bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta_0=beta_0, nside=nside)
-    # print(np.mean(beta_map))
-    # print(np.std(beta_map))
     ells = np.arange(0,ell_max)
+
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
     moment0x2 = np.zeros((len(freqs),len(ells)))
     #the sum part becomes
     sum = 2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3
@@ -243,6 +267,9 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
     sum = A_beta / (4 * pi * 80**gamma) * sum
     for i in range(len(moment0x2[:])):
         moment0x2[i] = np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * pcls * sum
+
+    if len(freqs)==1:
+        moment0x2 = moment0x2[0]
     return moment0x2
 
 
