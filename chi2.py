@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 
-alpha = eval(input("alpha = "))
-print(type(alpha))
+
 # def chi2(freqs, alphas, betas, gammas, sigmas=sigma_default):
 #     #make sure everything is an array
 #     #the new axis means that these are now shape (1,) arrays
