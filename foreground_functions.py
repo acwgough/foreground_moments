@@ -98,7 +98,7 @@ def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_def
     beta_map -= (np.mean(beta_map) - beta)
 
     #update the beta_cls
-    bcls = bcls * (sigma/std)**2 #scaling the map scales the C_ell by te square factor
+    bcls = bcls * (sigma/std)**2 #scaling the map scales the C_ell by the square factor
     # check_bcls = hp.anafast(beta_map)
     return bcls, beta_map
 
@@ -241,7 +241,11 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
         freqs = np.array(freqs)[np.newaxis]
 
     moment1x1 = np.zeros((len(freqs),len(ells)))
-    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
+
+    #this should not generate new maps everytime, the powerspectrum called from the same parameters should always be the same
+    #better than using map_amp as we don't need the amp_map, just the input c_ells.
+    pcls = A * powerlaw(ells, alpha)
+
     bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
