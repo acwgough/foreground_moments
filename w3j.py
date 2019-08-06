@@ -44,8 +44,9 @@ for ell1 in ells_ext[:ell_sum]:
 big_w3j = big_w3j**2
 #the array w3j now holds all the (ell ell1 ell2) elements in an array. Grab with [: ell1 ell2] element.
 #write this to file
-filename = 'w3j'
-np.save(filename, big_w3j)
+filepath = '/Users/alex/Documents/foreground_w3j/w3j.npy'
+
+np.save(filepath, big_w3j)
 
         #define wignersum to be the array with the sum of the squares of the wigner coefficients
         # wignersum += factor[ell1, ell2] * amp_cls[ell1] * beta_cls[ell2] * (w3j**2)
