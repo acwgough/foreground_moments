@@ -17,6 +17,8 @@ beta_default = -3.2
 beta_sigma_default = 1.5e-6
 nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choose 95 GHz for best convergences
 
+#for a set of standard beta_cls to test consistency of w3j function
+beta_cls = np.load('beta_cls.npy')
 
 #for power law beta
 crit = 2/np.log(10)
@@ -183,50 +185,24 @@ def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alph
     return moment0x0
 
 #---------GET WIGNER SUM PART OF EQUATION 35 FOR 1x1moment-------------
-def get_wigner_sum(ell_sum, amp_cls, beta_cls):
-    #ell_sum       == upper limit on sum of ell1 ell2
-    #ell_physical  == upper ell physically discernable
-    #cls_1,2       == the input c_ell for the amplitude and varition (beta) map
-    #order of input for cls_1,2 doesn't matter as is symmetric in both
+def get_wigner_sum(ell_sum=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
     ells_ext = np.arange(0, ell_sum)  #the ells to be summed over
     #define an empty array to store the wigner sum in
     wignersum = np.zeros_like(ells_ext, dtype=float)
-
-    #begin the sum (leave off final element so the shapes work out)
-
+    amp_cls = A * powerlaw(ells_ext, alpha)
+    beta_cls, betamap = map_power_beta(ell_max=ell_sum, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     #defines an array for the factor later, saves time in the loop
     factor = np.zeros((ell_sum, ell_sum))
     for i in range(ell_sum):
         for j in range(ell_sum):
             factor[i,j] = (2*i+1)*(2*j+1)
     factor = factor/(4*pi)
-
-
+    #load in the w3j coefficients
+    w3j = np.load('w3j.npy')
     for ell1 in ells_ext[:ell_sum]:
         for ell2 in ells_ext[:ell_sum]:
-            w3j, ellmin, ellmax = Wigner3j(ell1, ell2, 0, 0, 0)
-            avaliable_ells = np.arange(ellmin, ellmax+1)
-            #this block forces all the w3j arrays to have the same size as the wignersum array
-            #cut off trailing zeros at the end of w3j
-            # max_nonzero_index = ellmax - ellmin
-            w3j = w3j[:ellmax - ellmin + 1]
-            #make the w3j array the same shape as the wignersum array
-            if len(w3j) < len(ells_ext):
-                #a set of zeros of the same shape which we'll use for padding
-                reference = np.zeros(len(wignersum))
-                reference[:w3j.shape[0]] = w3j
-                w3j = reference
-
-            #roll stuff into position and relabel those that roll ''around'' to 0. Using concatenate here
-            #as it is faster than np.roll.
-            w3j = np.concatenate([w3j[-ellmin:],w3j[:-ellmin]])
-            #cut to size of the moment that we're adding (the size of the ells matrix).
-            w3j = w3j[:len(ells_ext)]
-            #set those that rolled around to 0
-            w3j[:ellmin] = 0
-
             #define wignersum to be the array with the sum of the squares of the wigner coefficients
-            wignersum += factor[ell1, ell2] * amp_cls[ell1] * beta_cls[ell2] * (w3j**2)
+            wignersum += factor[ell1, ell2] * amp_cls[ell1] * beta_cls[ell2] * (w3j[:,ell1,ell2])
 
     return wignersum
 #---------------------------------------------------------------------
@@ -247,7 +223,8 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
     pcls = A * powerlaw(ells, alpha)
 
     bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
-    wignersum = get_wigner_sum(ell_max, pcls, bcls)
+    wignersum = get_wigner_sum(ell_sum=ell_max, alpha=alpha, A=A, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    # wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
 
@@ -290,7 +267,7 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 def get_chi_square(data, model):
     resid = data-model
     chi_square = 0
-    for ell in range(len(resid)):
+    for ell in range(2, len(resid)): #ignore monopole and dipole contributions as cosmic variance should be 0
         cosmic_var = 2/(2*ell+1) * data[ell]**2
         chi_square += resid[ell]**2 / cosmic_var
     return chi_square
@@ -307,7 +284,16 @@ def get_plots(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, al
     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, ell_max=ell_max, nu0=nu0, nside=nside)
     moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
     model = moment0x0+moment1x1+moment0x2
+
+    # cosmic_var = np.zeros((len(freqs),len(ells)))
+    # for i in range(len(freqs)):
+    #     for j in range(len(ells)):
+    #         cosmic_var[i,j] = 2/(2*i+1) * model[i,j]**2
+    # cosmic_var[:,0] = 0
+    # cosmic_var[:,1] = 0
+
     newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, nu0=nu0, nside=nside)
+
 
     for i in range(len(freqs)):
         anafast=hp.anafast(newmaps[i])
@@ -316,13 +302,14 @@ def get_plots(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, al
         ax = plt.subplot(111)
         frame1=fig.add_axes((.1,.5,.8,.6))
         #xstart, ystart, xend, yend [units are fraction of the image frame, from bottom left corner]
-        plt.semilogy(ells, moment0x0[i], label='0x0')
-        plt.semilogy(ells, moment1x1[i], label='1x1')
-        plt.semilogy(ells, moment0x2[i], label='0x2')
+        plt.semilogy(ells[2:], moment0x0[i][2:], label='0x0')
+        plt.semilogy(ells[2:], moment1x1[i][2:], label='1x1')
+        plt.semilogy(ells[2:], moment0x2[i][2:], label='0x2')
         # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
         # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
-        plt.semilogy(ells, moment0x0[i]+moment1x1[i]+moment0x2[i], 'k', label='0x0 + 1x1 + 0x2')
-        plt.semilogy(ells, anafast, 'r', label='anafast')
+        plt.semilogy(ells[2:], model[i][2:], 'k', label='0x0 + 1x1 + 0x2')
+        # plt.errorbar(ells[2:], model[i][2:], yerr=cosmic_var[i][2:], fmt='.')
+        plt.semilogy(ells[2:], anafast[2:], 'r', label='anafast')
         frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
         # plt.text(0.5,0.95,r'0.5, 0.95',fontsize=14, transform=ax.transAxes)
         # plt.text(0.5,1.0,r'0.5, 1.0',fontsize=14, transform=ax.transAxes)
@@ -338,9 +325,9 @@ def get_plots(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, al
         frac_error = (anafast-model[i])/anafast
         # ratio = anafast/model[i]
         frame2=fig.add_axes((.1,.3,.8,.2))
-        plt.plot(ells, frac_error, '.')
+        plt.plot(ells[2:], frac_error[2:], '.')
         # plt.plot(ells,ratio, '.')
-        plt.plot(ells, np.zeros_like(ells))
+        plt.plot(ells[2:], np.zeros_like(ells[2:]))
         frame2.set_xticklabels([]) #Remove x-tic labels for the 2nd frame
         plt.ylabel('frac. err.')
         plt.grid()
@@ -348,10 +335,11 @@ def get_plots(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, al
         #residuals plot
         resid = (anafast-model[i])**2
         frame3=fig.add_axes((.1,.1,.8,.2))
-        plt.semilogy(ells, resid, '.')
+        plt.semilogy(ells[2:], resid[2:], '.')
         plt.ylabel(r'$\mathrm{resid}^2$')
         plt.xlabel(r'$\ell$')
         plt.grid()
+
     plt.show()
     return None
 
@@ -373,7 +361,7 @@ def chi2(data, freq, param):
     mom0x2 = auto0x2(freq, A=A_default, alpha=alpha, ell_max=ell_max_default, nu0=nu0_default, beta=beta, sigma=sigma_default, gamma=gamma, nside=nside_default)
     residual = data - (mom0x0 + mom1x1 + mom0x2)
     chi_square = 0
-    for ell in range(len(residual)):
+    for ell in range(2,len(residual)):
         cosmic_var = 2/(2*ell+1) * data[ell]**2
         chi_square += residual[ell]**2 / cosmic_var
     return chi_square
