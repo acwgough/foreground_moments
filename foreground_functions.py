@@ -198,7 +198,8 @@ def get_wigner_sum(ell_sum=ell_max_default, alpha=alpha_default, A=A_default, si
             factor[i,j] = (2*i+1)*(2*j+1)
     factor = factor/(4*pi)
     #load in the w3j coefficients
-    w3j = np.load('w3j.npy')
+    w3j = np.load('/Users/alex/Documents/foreground_w3j/w3j.npy')
+    # w3j = np.load('w3j.npy')
     for ell1 in ells_ext[:ell_sum]:
         for ell2 in ells_ext[:ell_sum]:
             #define wignersum to be the array with the sum of the squares of the wigner coefficients
@@ -268,7 +269,7 @@ def get_chi_square(data, model):
     resid = data-model
     chi_square = 0
     for ell in range(2, len(resid)): #ignore monopole and dipole contributions as cosmic variance should be 0
-        cosmic_var = 2/(2*ell+1) * data[ell]**2
+        cosmic_var = 2/(2*ell+1) * model[ell]**2
         chi_square += resid[ell]**2 / cosmic_var
     return chi_square
 
@@ -359,10 +360,11 @@ def chi2(data, freq, param):
     mom0x0 = auto0x0(freq, beta=beta, ell_max=ell_max_default, A=A_default, alpha=alpha, nu0=nu0_default)
     mom1x1 = auto1x1(freq, A=A_default, alpha=alpha, sigma=sigma_default, gamma=gamma, beta=beta, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default)
     mom0x2 = auto0x2(freq, A=A_default, alpha=alpha, ell_max=ell_max_default, nu0=nu0_default, beta=beta, sigma=sigma_default, gamma=gamma, nside=nside_default)
-    residual = data - (mom0x0 + mom1x1 + mom0x2)
+    model = mom0x0 + mom1x1 + mom0x2
+    residual = data - model
     chi_square = 0
     for ell in range(2,len(residual)):
-        cosmic_var = 2/(2*ell+1) * data[ell]**2
+        cosmic_var = 2/(2*ell+1) * model[ell]**2
         chi_square += residual[ell]**2 / cosmic_var
     return chi_square
 
