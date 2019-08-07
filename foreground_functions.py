@@ -30,14 +30,18 @@ gamma_default = -2.1 #must be less than -2 for convergence in 0x2 term
 #---------FUNCTIONS FOR AMPLITUDE MAP---------------------------------
 #=====================================================================
 #--------powerlaw function--------------------------------------------
-def powerlaw(ell, alpha):
-    #set this to power law everything except the first two elements, and set the
-    #first two elements to 0
-    power = np.zeros(len(ell))
-    power[2:] = (ell[2:]/ 80.)**alpha
-    power[0] = 0
-    power[1] = 0
-    return power
+# def powerlaw(ell, alpha):
+#     #set this to power law everything except the first two elements, and set the
+#     #first two elements to 0
+#     power = np.zeros(len(ell))
+#     power[2:] = (ell[2:]/ 80.)**alpha
+#     power[0] = 0
+#     power[1] = 0
+#     return power
+def powerlaw(ells, amp, alpha):
+    model = np.zeros(len(ells))
+    model[2:] = (ells[2:] / 80.)**alpha
+    return amp * model
 
 
 #defines a normal planck distribution for unit conversion to kelvin
@@ -69,7 +73,7 @@ def scale_synch(nu, beta, nu0=nu0_default):
 def map_amp(ell_max=ell_max_default, A=A_default, alpha=alpha_default, nside=nside_default):
     #returns input and output powerspectra, and the map
     ells = np.arange(0,ell_max)
-    pcls = A * powerlaw(ells, alpha)
+    pcls = powerlaw(ells, A, alpha)
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
     #check_pcls = hp.anafast(amp_map)
     return pcls, amp_map
@@ -91,7 +95,7 @@ def map_beta(ell_max=ell_max_default, sigma=beta_sigma_default, beta=beta_defaul
 #--------generate power law beta----------------------------------------
 def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
     ells = np.arange(0,ell_max)
-    bcls = powerlaw(ells, gamma)
+    bcls = powerlaw(ells, 1, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     std = np.std(beta_map)
     #update beta map to have the correct std dev
@@ -130,7 +134,17 @@ def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
         newmaps_beta = newmaps_beta[0]
     return newmaps_beta
 
+def PS_data(freqs, A, alpha, beta, gamma):
+    data_maps = map_full_power(freqs, ell_max=ell_max_default, A=A, alpha=alpha, sigma=sigma_default, gamma=gamma, beta=beta, nu0=nu0_default, nside=nside_default)
 
+    if type(freqs)==np.ndarray:
+        power_spectrum = np.zeros((len(freqs),ell_max_default))
+        for i in range(len(freqs)):
+            power_spectrum[i] = hp.anafast(data_maps[i])
+
+    else:
+        power_spectrum = hp.anafast(data_maps)
+    return power_spectrum
 
 
 #-------function to make many realisations of the same white noise map------------------------
@@ -171,7 +185,7 @@ def realisation_power(N, freqs, ell_max=ell_max_default, A=A_default, alpha=alph
 def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default):
     sed_scaling = scale_synch(freqs, beta, nu0=nu0)
     ells = np.arange(0,ell_max)
-    pcls = A * powerlaw(ells, alpha)
+    pcls =powerlaw(ells, A, alpha)
     #allows for single frequencies to be entered
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -189,7 +203,7 @@ def get_wigner_sum(ell_sum=ell_max_default, alpha=alpha_default, A=A_default, si
     ells_ext = np.arange(0, ell_sum)  #the ells to be summed over
     #define an empty array to store the wigner sum in
     wignersum = np.zeros_like(ells_ext, dtype=float)
-    amp_cls = A * powerlaw(ells_ext, alpha)
+    amp_cls = powerlaw(ells_ext, A, alpha)
     beta_cls, betamap = map_power_beta(ell_max=ell_sum, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     #defines an array for the factor later, saves time in the loop
     factor = np.zeros((ell_sum, ell_sum))
@@ -221,7 +235,7 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
 
     #this should not generate new maps everytime, the powerspectrum called from the same parameters should always be the same
     #better than using map_amp as we don't need the amp_map, just the input c_ells.
-    pcls = A * powerlaw(ells, alpha)
+    pcls = powerlaw(ells, A, alpha)
 
     bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     wignersum = get_wigner_sum(ell_sum=ell_max, alpha=alpha, A=A, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
@@ -260,8 +274,24 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
         moment0x2 = moment0x2[0]
     return moment0x2
 
+#define the full model
+def model(freqs, A, alpha, beta, gamma, ell_max=ell_max_default, nu0=nu0_default, sigma=sigma_default, nside=nside_default):
+    #these return the maps, shape (number of freqs, number of pix)
+    mom0x0 = auto0x0(freqs, beta=beta, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
+    mom1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, ell_max=ell_max, nu0=nu0, nside=nside)
+    mom0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
+    model  = mom0x0 + mom1x1 + mom0x2
+    return model
 
-
+def model_single(ells, A, alpha, beta, gamma, nu0=nu0_default, sigma=sigma_default, nside=nside_default):
+    #these return the maps, shape (number of freqs, number of pix)
+    freqs=30e9
+    ell_max = len(ells)
+    mom0x0 = auto0x0(freqs, beta=beta, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
+    mom1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, ell_max=ell_max, nu0=nu0, nside=nside)
+    mom0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
+    model  = mom0x0 + mom1x1 + mom0x2
+    return model
 
 
 #--------get chi_square value for a fit from set of data and the model------

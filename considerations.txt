@@ -1,0 +1,31 @@
+List of considerations concerning foreground moments project -- Ongoing.
+
+----- w3j -----
+ - possible the high ell w3j coefficients are not correct due to code inaccuracies
+        - could try a different package for w3j calculation and compare
+
+ - the truncation effect of the w3j sum in the 1x1 term
+        - this does not appear to have a large effect empirically
+
+ - consistency tests should continue to be done on the w3j function after the stages of optimisation
+
+
+---- realisation -----
+ - the data fluctuate due to cosmic variance in each realisation, quantifying this effect is important
+
+ - the model (the 1x1 and 0x2) fluctuate with realisation due to the beta map standardisation of sigma
+        - can partially negate this by calculating the 1x1 and 0x2 in the same function, so from the same bcls each time
+        - try to find a functional form relating the needed amplitude of the beta map to the gamma exponent, so we can
+          make it independent of realisation
+
+ - chi2 values of a fit vary within an order of magnitude due to realisation
+        - was previously much worse (up to 5-6 orders) but those were due to mono/dipole effects
+        - this is probably fine and within cosmic variance, error plots with cosmic variance should be made though
+
+---- convergence ----
+ - we currently have the maps set up so the std of the beta map is 1/3 the critical value for convergence. How close can we get
+   before this totally breaks?
+
+ - divergence at gamma = -2, does this correspond to anything physical? This is a statement of validity of moment expansion.
+
+ - Condition for gamma < -2, excludes possibility of white noise. This is possibly related to validity of expansion.
