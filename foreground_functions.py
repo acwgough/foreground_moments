@@ -318,7 +318,6 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
 
-
     #get the auto0x2 term
     moment0x2 = np.zeros((len(freqs),len(ells)))
     #the sum part becomes
