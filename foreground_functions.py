@@ -26,6 +26,9 @@ sigma_default = crit/3
 gamma_default = -2.1 #must be less than -2 for convergence in 0x2 term
 
 
+#load in the w3j matrix
+w3j = np.load('/Users/alex/Documents/foreground_w3j/w3j.npy')
+
 #=====================================================================
 #---------FUNCTIONS FOR AMPLITUDE MAP---------------------------------
 #=====================================================================
@@ -212,8 +215,8 @@ def get_wigner_sum(ell_sum=ell_max_default, alpha=alpha_default, A=A_default, si
             factor[i,j] = (2*i+1)*(2*j+1)
     factor = factor/(4*pi)
     #load in the w3j coefficients
-    w3j = np.load('/Users/alex/Documents/foreground_w3j/w3j.npy')
-    # w3j = np.load('w3j.npy')
+    # w3j = np.load('/Users/alex/Documents/foreground_w3j/w3j.npy')
+
     for ell1 in ells_ext[:ell_sum]:
         for ell2 in ells_ext[:ell_sum]:
             #define wignersum to be the array with the sum of the squares of the wigner coefficients
