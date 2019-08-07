@@ -17,8 +17,8 @@ beta_default = -3.2
 beta_sigma_default = 1.5e-6
 nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choose 95 GHz for best convergences
 
-#for a set of standard beta_cls to test consistency of w3j function
-beta_cls = np.load('beta_cls.npy')
+# #for a set of standard beta_cls to test consistency of w3j function
+# beta_cls = np.load('beta_cls.npy')
 
 #for power law beta
 crit = 2/np.log(10)
@@ -275,16 +275,15 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
     return moment0x2
 
 #define the full model
-def model(freqs, A, alpha, beta, gamma, ell_max=ell_max_default, nu0=nu0_default, sigma=sigma_default, nside=nside_default):
+def model(freqs, A, alpha, beta, gamma):
     #these return the maps, shape (number of freqs, number of pix)
-    mom0x0 = auto0x0(freqs, beta=beta, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
-    mom1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, ell_max=ell_max, nu0=nu0, nside=nside)
-    mom0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
+    mom0x0 = auto0x0(freqs, A=A, alpha=alpha, beta=beta)
+    mom1x1 = auto1x1(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma)
+    mom0x2 = auto0x2(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma)
     model  = mom0x0 + mom1x1 + mom0x2
     return model
 
 def model_single(ells, A, alpha, beta, gamma, nu0=nu0_default, sigma=sigma_default, nside=nside_default):
-    #these return the maps, shape (number of freqs, number of pix)
     freqs=30e9
     ell_max = len(ells)
     mom0x0 = auto0x0(freqs, beta=beta, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
@@ -292,6 +291,50 @@ def model_single(ells, A, alpha, beta, gamma, nu0=nu0_default, sigma=sigma_defau
     mom0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
     model  = mom0x0 + mom1x1 + mom0x2
     return model
+
+#wrtie function for full model that is independent of the auto functions as written
+def full_model(ells, freqs, A, alpha, beta, gamma):
+    ell_max = len(ells)
+    pcls =powerlaw(ells, A, alpha)
+    sed_scaling = scale_synch(freqs, beta)
+    bcls, beta_map = map_power_beta(ell_max=ell_max, beta=beta, gamma=gamma)
+    #allows for single frequencies to be entered
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
+    #get the auto0x0 term
+    moment0x0 = np.zeros((len(freqs),len(ells)))
+    for i in range(len(moment0x0[:])):
+        moment0x0[i] = pcls * sed_scaling[i]**2
+    if len(freqs)==1:
+        moment0x0 = moment0x0[0]
+
+    #get auto1x1 term
+    moment1x1 = np.zeros((len(freqs),len(ells)))
+    wignersum = get_wigner_sum(ell_sum=ell_max, A=A, alpha=alpha, beta=beta, gamma=gamma)
+    # wignersum = get_wigner_sum(ell_max, pcls, bcls)
+    for i in range(len(moment1x1[:])):
+        moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
+    if len(freqs)==1:
+        moment1x1 = moment1x1[0]
+
+
+    #get the auto0x2 term
+    moment0x2 = np.zeros((len(freqs),len(ells)))
+    #the sum part becomes
+    sum = 2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3
+    #multiply by the prefactors of the sum
+    #have to add due to rescaling the beta map to have same std.
+    A_beta = bcls[80]
+
+    sum *= A_beta / (4 * pi * 80**gamma)
+    for i in range(len(moment0x2[:])):
+        moment0x2[i] = np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * pcls * sum
+
+    if len(freqs)==1:
+        moment0x2 = moment0x2[0]
+    return moment0x0 + moment1x1 + moment0x2
+
 
 
 #--------get chi_square value for a fit from set of data and the model------
