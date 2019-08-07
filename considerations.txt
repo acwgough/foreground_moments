@@ -29,3 +29,8 @@ List of considerations concerning foreground moments project -- Ongoing.
  - divergence at gamma = -2, does this correspond to anything physical? This is a statement of validity of moment expansion.
 
  - Condition for gamma < -2, excludes possibility of white noise. This is possibly related to validity of expansion.
+
+---- fitting ----
+ - why are the curve fitting programs (curve_fit and minimize) not working? Is this solely due to degeneracy and poor starting positions,
+   or is there something wrong with the functions?
+        - I think it's likely there's a bug in the functions themselves, on top of the degeneracy in the model parameters.
