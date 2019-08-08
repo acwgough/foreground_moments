@@ -100,7 +100,16 @@ def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_def
     ells = np.arange(0,ell_max)
     bcls = powerlaw(ells, 1, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
-    std = np.std(beta_map)
+
+    #model the standard deviation as a function of gamma
+    #model is std = a * (-gamma)^b * exp(c * gamma)
+    #best fit parameters 2019-08-08 are stored
+    a = 4.16190627
+    b = -3.28619789
+    c = -2.56282892
+
+    std = a * (-gamma)**b * np.exp(c*gamma)
+    # std = np.std(beta_map)
     #update beta map to have the correct std dev
     beta_map = beta_map * sigma / std
     #update the map so that the mean is correct
