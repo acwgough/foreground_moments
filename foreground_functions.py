@@ -23,7 +23,7 @@ nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choo
 #for power law beta
 crit = 2/np.log(10)
 sigma_default = crit/3
-gamma_default = -2.1 #must be less than -2 for convergence in 0x2 term
+gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
 
 
 #load in the w3j matrix
@@ -288,15 +288,40 @@ def model(freqs, A, alpha, beta, gamma):
 
 
 #function for producing something we can hopefully do a 1d curve fit to...
-#not currently working, though deleting the optional arguments got the code to even run.
+#
 def model_single(ells, A, alpha):
-    freqs=30e9
-    mom0x0 = auto0x0(freqs, A=A, alpha=alpha)
-    mom1x1 = auto1x1(freqs, A=A, alpha=alpha)
-    mom0x2 = auto0x2(freqs, A=A, alpha=alpha)
-    # model  = mom0x0 + mom1x1 + mom0x2
-    model = mom0x0 #+ mom1x1 + mom0x2
+    #start with this just calculating the 0x0 moment and trying to fit that to data.
+    #can fit for just
+
+    ell_max = len(ells)
+    pcls = powerlaw(ells, A, alpha)
+    sed_scaling = scale_synch(30e9, beta_default)
+    bcls, beta_map = map_power_beta(ell_max=ell_max)
+
+
+    moment0x0 = pcls * sed_scaling**2
+
+    wignersum = get_wigner_sum(ell_sum=ell_max, A=A, alpha=alpha)
+    moment1x1 =  np.log(30e9/nu0_default)**2 * sed_scaling**2 * wignersum
+
+    sum = 2 * sp.zeta(-gamma_default-1) + sp.zeta(-gamma_default) - 3
+    A_beta = bcls[80]
+    sum *= A_beta / (4 * pi * 80**gamma_default)
+    moment0x2 = np.log(30e9/nu0_default)**2 * sed_scaling**2 * pcls * sum
+
+    model = moment0x0[2:] + moment1x1[2:] # + moment0x2[30:]
     return model
+
+
+
+# def model_single(ells, A, alpha):
+#     freqs=30e9
+#     mom0x0 = auto0x0(freqs, A=A, alpha=alpha)
+#     mom1x1 = auto1x1(freqs, A=A, alpha=alpha)
+#     mom0x2 = auto0x2(freqs, A=A, alpha=alpha)
+#     # model  = mom0x0 + mom1x1 + mom0x2
+#     model = mom0x0 #+ mom1x1 + mom0x2
+#     return model
 
 #wrtie function for full model that is independent of the auto functions as written
 def full_model(ells, freqs, A, alpha, beta, gamma):
@@ -343,27 +368,6 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
 
 
 
-def factored_model(ells, freqs, A, alpha, beta, gamma):
-    pcls = powerlaw(ells, A, alpha)
-    bcls, beta_map = map_power_beta(ell_max=len(ells), beta=beta, gamma=gamma)
-    A_beta = bcls[80]
-    sed_scaling = scale_synch(freqs, beta)
-    factor = np.zeros((len(ells), len(ells)))
-    for i in range(len(ells)):
-        for j in range(len(ells)):
-            factor[i,j] = (2*i+1)*(2*j+1)
-    #calculate the sum term of the model from the 1x1 term.
-    sum_part = np.zeros_like(ells, dtype=float)
-    for ell1 in ells:
-        for ell2 in ells:
-            sum_part += w3j[:, ell1, ell2] * factor[ell1,ell2] * pcls[ell1] * bcls[ell2]
-    #calculate zeta part
-    zeta_part = (A * A_beta)/(80**gamma) * (2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3)
-    #calculate the full model
-    model = np.zeros((len(freqs),len(ells)))
-    for i in range(len(freqs)):
-        model[i] = sed_scaling[i]**2 * (pcls + 1/(4*pi) * np.log(freqs[i]/nu0_default) * (zeta_part + sum_part))
-    return model
 
 #--------get chi_square value for a fit from set of data and the model------
 def get_chi_square(data, model):
