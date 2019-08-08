@@ -342,6 +342,29 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
 
 
 
+
+def factored_model(ells, freqs, A, alpha, beta, gamma):
+    pcls = powerlaw(ells, A, alpha)
+    bcls, beta_map = map_power_beta(ell_max=len(ells), beta=beta, gamma=gamma)
+    A_beta = bcls[80]
+    sed_scaling = scale_synch(freqs, beta)
+    factor = np.zeros((len(ells), len(ells)))
+    for i in range(len(ells)):
+        for j in range(len(ells)):
+            factor[i,j] = (2*i+1)*(2*j+1)
+    #calculate the sum term of the model from the 1x1 term.
+    sum_part = np.zeros_like(ells, dtype=float)
+    for ell1 in ells:
+        for ell2 in ells:
+            sum_part += w3j[:, ell1, ell2] * factor[ell1,ell2] * pcls[ell1] * bcls[ell2]
+    #calculate zeta part
+    zeta_part = (A * A_beta)/(80**gamma) * (2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3)
+    #calculate the full model
+    model = np.zeros((len(freqs),len(ells)))
+    for i in range(len(freqs)):
+        model[i] = sed_scaling[i]**2 * (pcls + 1/(4*pi) * np.log(freqs[i]/nu0_default) * (zeta_part + sum_part))
+    return model
+
 #--------get chi_square value for a fit from set of data and the model------
 def get_chi_square(data, model):
     resid = data-model

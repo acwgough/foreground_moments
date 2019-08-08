@@ -34,3 +34,9 @@ List of considerations concerning foreground moments project -- Ongoing.
  - why are the curve fitting programs (curve_fit and minimize) not working? Is this solely due to degeneracy and poor starting positions,
    or is there something wrong with the functions?
         - I think it's likely there's a bug in the functions themselves, on top of the degeneracy in the model parameters.
+
+
+---- going forward ----
+ - adding cross spectra
+ - adding dust/other components besides synch
+ - MCMC (once parameter fitting working)
