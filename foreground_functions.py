@@ -292,7 +292,7 @@ def model(freqs, A, alpha, beta, gamma):
     mom0x0 = auto0x0(freqs, A=A, alpha=alpha, beta=beta)
     mom1x1 = auto1x1(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma)
     mom0x2 = auto0x2(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma)
-    model  = mom0x0 + mom1x1 + mom0x2
+    model  = mom0x0[:,2:] + mom1x1[:,2:] + mom0x2[:,2:]
     return model
 
 
@@ -313,26 +313,21 @@ def model_single(ells, A, alpha):
     wignersum = get_wigner_sum(ell_sum=ell_max, A=A, alpha=alpha)
     moment1x1 =  np.log(30e9/nu0_default)**2 * sed_scaling**2 * wignersum
 
-    sum = 2 * sp.zeta(-gamma_default-1) + sp.zeta(-gamma_default) - 3
-    A_beta = bcls[80]
-    sum *= A_beta / (4 * pi * 80**gamma_default)
-    moment0x2 = np.log(30e9/nu0_default)**2 * sed_scaling**2 * pcls * sum
+    # sum = 2 * sp.zeta(-gamma_default-1) + sp.zeta(-gamma_default) - 3
+    # A_beta = bcls[80]
+    # sum *= A_beta / (4 * pi * 80**gamma_default)
+    # moment0x2 = np.log(30e9/nu0_default)**2 * sed_scaling**2 * pcls * sum
 
-    model = moment0x0[2:] + moment1x1[2:] # + moment0x2[30:]
+    moment0x2 = auto0x2(30e9, A=A, alpha=alpha)
+
+    model = moment0x0[2:] + moment1x1[2:] + moment0x2[2:]
     return model
 
 
 
-# def model_single(ells, A, alpha):
-#     freqs=30e9
-#     mom0x0 = auto0x0(freqs, A=A, alpha=alpha)
-#     mom1x1 = auto1x1(freqs, A=A, alpha=alpha)
-#     mom0x2 = auto0x2(freqs, A=A, alpha=alpha)
-#     # model  = mom0x0 + mom1x1 + mom0x2
-#     model = mom0x0 #+ mom1x1 + mom0x2
-#     return model
 
 #wrtie function for full model that is independent of the auto functions as written
+#checked, this produces the same as the one defining each term indeividually 2019-08-09
 def full_model(ells, freqs, A, alpha, beta, gamma):
     ell_max = len(ells)
     pcls =powerlaw(ells, A, alpha)
@@ -346,6 +341,9 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     moment0x0 = np.zeros((len(freqs),len(ells)))
     for i in range(len(moment0x0[:])):
         moment0x0[i] = pcls * sed_scaling[i]**2
+
+    moment0x0 = moment0x0[:, 2:]
+
     if len(freqs)==1:
         moment0x0 = moment0x0[0]
 
@@ -355,6 +353,9 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     # wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
+
+    moment1x1 = moment1x1[:, 2:]
+
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
 
@@ -369,6 +370,8 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     sum *= A_beta / (4 * pi * 80**gamma)
     for i in range(len(moment0x2[:])):
         moment0x2[i] = np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * pcls * sum
+
+    moment0x2 = moment0x2[:, 2:]
 
     if len(freqs)==1:
         moment0x2 = moment0x2[0]
