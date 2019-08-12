@@ -17,6 +17,7 @@ List of considerations concerning foreground moments project -- Ongoing.
         - can partially negate this by calculating the 1x1 and 0x2 in the same function, so from the same bcls each time
         - try to find a functional form relating the needed amplitude of the beta map to the gamma exponent, so we can
           make it independent of realisation
+           ---FIXED as of 2019-08-12
 
  - chi2 values of a fit vary within an order of magnitude due to realisation
         - was previously much worse (up to 5-6 orders) but those were due to mono/dipole effects
@@ -34,6 +35,9 @@ List of considerations concerning foreground moments project -- Ongoing.
  - why are the curve fitting programs (curve_fit and minimize) not working? Is this solely due to degeneracy and poor starting positions,
    or is there something wrong with the functions?
         - I think it's likely there's a bug in the functions themselves, on top of the degeneracy in the model parameters.
+
+ - minimize is now working for 2d fits (2019-08-12) however is only moving in the alpha, beta, gamma subspace, it does not move from the input value of
+   the amplitude.
 
 
 ---- going forward ----
