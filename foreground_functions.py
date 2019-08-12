@@ -292,7 +292,7 @@ def model(freqs, A, alpha, beta, gamma):
     mom0x0 = auto0x0(freqs, A=A, alpha=alpha, beta=beta)
     mom1x1 = auto1x1(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma)
     mom0x2 = auto0x2(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma)
-    model  = mom0x0[:,2:] + mom1x1[:,2:] + mom0x2[:,2:]
+    model  = mom0x0 + mom1x1 + mom0x2
     return model
 
 
@@ -320,7 +320,7 @@ def model_single(ells, A, alpha):
 
     moment0x2 = auto0x2(30e9, A=A, alpha=alpha)
 
-    model = moment0x0[2:] + moment1x1[2:] + moment0x2[2:]
+    model = moment0x0 + moment1x1 + moment0x2
     return model
 
 
@@ -342,7 +342,6 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     for i in range(len(moment0x0[:])):
         moment0x0[i] = pcls * sed_scaling[i]**2
 
-    moment0x0 = moment0x0[:, 2:]
 
     if len(freqs)==1:
         moment0x0 = moment0x0[0]
@@ -354,7 +353,6 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
 
-    moment1x1 = moment1x1[:, 2:]
 
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
@@ -371,7 +369,6 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     for i in range(len(moment0x2[:])):
         moment0x2[i] = np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * pcls * sum
 
-    moment0x2 = moment0x2[:, 2:]
 
     if len(freqs)==1:
         moment0x2 = moment0x2[0]
