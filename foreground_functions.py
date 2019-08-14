@@ -83,16 +83,16 @@ def map_amp(ell_max=ell_max_default, A=A_default, alpha=alpha_default, nside=nsi
 
 
 #-------generate beta map with uniform power spectrum------------------
-def map_beta(ell_max=ell_max_default, sigma=beta_sigma_default, beta=beta_default, nside=nside_default):
-    ells = np.arange(0,ell_max)
-    bcls = sigma * np.ones_like(ells)
-    bcls[0] = 0
-    bcls[1] = 0
-    beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
-    #update the map so that the mean is correct
-    beta_map -= (np.mean(beta_map) - beta)
-    # check_bcls = hp.anafast(beta_map)
-    return bcls, beta_map
+# def map_beta(ell_max=ell_max_default, sigma=beta_sigma_default, beta=beta_default, nside=nside_default):
+#     ells = np.arange(0,ell_max)
+#     bcls = sigma * np.ones_like(ells)
+#     bcls[0] = 0
+#     bcls[1] = 0
+#     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
+#     #update the map so that the mean is correct
+#     beta_map -= (np.mean(beta_map) - beta)
+#     # check_bcls = hp.anafast(beta_map)
+#     return bcls, beta_map
 
 
 #--------generate power law beta----------------------------------------
@@ -120,6 +120,19 @@ def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_def
     # check_bcls = hp.anafast(beta_map)
     return bcls#, beta_map
 
+def bcls(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
+    ells = np.arange(0,ell_max)
+    bcls = powerlaw(ells, 1, gamma)
+    #model the standard deviation as a function of gamma
+    #model is std = a * (-gamma)^b * exp(c * gamma)
+    #best fit parameters 2019-08-08 are stored
+    a = 4.16190627
+    b = -3.28619789
+    c = -2.56282892
+    std = a * (-gamma)**b * np.exp(c*gamma)
+    bcls *= (sigma/std)**2 #scaling the map scales the C_ell by the square factor
+    return bcls
+
 
 
 #-------function to generate series of frequency maps with constant C_ell^beta/white noise----
@@ -131,6 +144,22 @@ def map_full_white(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
     #make realistic maps
     newmaps_beta = amp_map * sed_scaling_beta
     return newmaps_beta
+
+#------generate maps with constant default beta---------------
+def map_full_const(ells, freqs, params):
+    A, alpha = params
+    pcls, amp_map = map_amp(ell_max=len(ells), A=A, alpha=alpha)
+    SED = scale_synch(freqs, beta_default).T
+    newmaps = amp_map * SED[..., np.newaxis]
+    return newmaps
+
+#----generate maps with constant given beta-----
+def map_full_const_beta(ells, freqs, params):
+    A, alpha, beta = params
+    pcls, amp_map = map_amp(ell_max=len(ells), A=A, alpha=alpha)
+    SED = scale_synch(freqs, beta).T
+    newmaps = amp_map * SED[..., np.newaxis]
+    return newmaps
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
