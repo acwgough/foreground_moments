@@ -99,7 +99,7 @@ def map_beta(ell_max=ell_max_default, sigma=beta_sigma_default, beta=beta_defaul
 def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
     ells = np.arange(0,ell_max)
     bcls = powerlaw(ells, 1, gamma)
-    beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
+    # beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
 
     #model the standard deviation as a function of gamma
     #model is std = a * (-gamma)^b * exp(c * gamma)
@@ -111,14 +111,14 @@ def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_def
     std = a * (-gamma)**b * np.exp(c*gamma)
     # std = np.std(beta_map)
     #update beta map to have the correct std dev
-    beta_map = beta_map * sigma / std
+    # beta_map = beta_map * sigma / std
     #update the map so that the mean is correct
-    beta_map -= (np.mean(beta_map) - beta)
+    # beta_map -= (np.mean(beta_map) - beta)
 
     #update the beta_cls
     bcls = bcls * (sigma/std)**2 #scaling the map scales the C_ell by the square factor
     # check_bcls = hp.anafast(beta_map)
-    return bcls, beta_map
+    return bcls#, beta_map
 
 
 
@@ -136,7 +136,7 @@ def map_full_white(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
 def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nu0=nu0_default, nside=nside_default):
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    bcls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
 
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
@@ -211,25 +211,39 @@ def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alph
     return moment0x0
 
 #---------GET WIGNER SUM PART OF EQUATION 35 FOR 1x1moment-------------
-def get_wigner_sum(ell_sum=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
-    ells_ext = np.arange(0, ell_sum)  #the ells to be summed over
+def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
+    ells = np.arange(0, ell_max)  #the ells to be summed over
     #define an empty array to store the wigner sum in
-    wignersum = np.zeros_like(ells_ext, dtype=float)
-    amp_cls = powerlaw(ells_ext, A, alpha)
-    beta_cls, betamap = map_power_beta(ell_max=ell_sum, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    wignersum = np.zeros_like(ells, dtype=float)
+    amp_cls = powerlaw(ells, A, alpha)
+    beta_cls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     #defines an array for the factor later, saves time in the loop
-    factor = np.zeros((ell_sum, ell_sum))
-    for i in range(ell_sum):
-        for j in range(ell_sum):
-            factor[i,j] = (2*i+1)*(2*j+1)
-    factor = factor/(4*pi)
-    #load in the w3j coefficients
-    # w3j = np.load('/Users/alex/Documents/foreground_w3j/w3j.npy')
+    # factor = np.zeros((ell_max, ell_max))
+    # for i in range(ell_max):
+    #     for j in range(ell_max):
+    #         factor[i,j] = (2*i+1)*(2*j+1)
+    # factor = factor/(4*pi)
 
-    for ell1 in ells_ext[:ell_sum]:
-        for ell2 in ells_ext[:ell_sum]:
+    #can do the array factor with one loop that just stores (2ell+1)/4pi and call two different elements
+    # factor = np.zeros(ell_max)
+    # for i in range(ell_max):
+    #     factor[i] = (2*i+1)
+    # factor = factor/(np.sqrt(4*pi))
+    #sqrt 4 pi on bottom so that when two are multiplied together we have
+    #(2ell1 + 1)(2ell2 + 1)/4pi
+    factor = np.array([2*i+1 for i in range(384)])/(np.sqrt(4*pi))
+
+    for ell1 in ells:
+        A1 = factor[ell1]
+        B = amp_cls[ell1]
+        for ell2 in ells:
             #define wignersum to be the array with the sum of the squares of the wigner coefficients
-            wignersum += factor[ell1, ell2] * amp_cls[ell1] * beta_cls[ell2] * (w3j[:,ell1,ell2])
+            A2 = factor[ell2]
+            C = beta_cls[ell2]
+            D = w3j[:,ell1,ell2]
+            E = A * B * C * D
+
+            wignersum += E
 
     return wignersum
 #---------------------------------------------------------------------
@@ -249,8 +263,8 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
     #better than using map_amp as we don't need the amp_map, just the input c_ells.
     pcls = powerlaw(ells, A, alpha)
 
-    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
-    wignersum = get_wigner_sum(ell_sum=ell_max, alpha=alpha, A=A, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    bcls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    wignersum = get_wigner_sum(ell_max=ell_max, alpha=alpha, A=A, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     # wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
@@ -265,7 +279,7 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
 def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta=beta_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta, nu0=nu0)
     pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    bcls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     ells = np.arange(0,ell_max)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
@@ -305,12 +319,12 @@ def model_single(ells, A, alpha):
     ell_max = len(ells)
     pcls = powerlaw(ells, A, alpha)
     sed_scaling = scale_synch(30e9, beta_default)
-    bcls, beta_map = map_power_beta(ell_max=ell_max)
+    bcls = map_power_beta(ell_max=ell_max)
 
 
     moment0x0 = pcls * sed_scaling**2
 
-    wignersum = get_wigner_sum(ell_sum=ell_max, A=A, alpha=alpha)
+    wignersum = get_wigner_sum(ell_max=ell_max, A=A, alpha=alpha)
     moment1x1 =  np.log(30e9/nu0_default)**2 * sed_scaling**2 * wignersum
 
     # sum = 2 * sp.zeta(-gamma_default-1) + sp.zeta(-gamma_default) - 3
@@ -332,7 +346,16 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
     ell_max = len(ells)
     pcls =powerlaw(ells, A, alpha)
     sed_scaling = scale_synch(freqs, beta)
-    bcls, beta_map = map_power_beta(ell_max=ell_max, beta=beta, gamma=gamma)
+
+    #better to make the bcls and not the beta map, faster
+    bcls = powerlaw(ells, 1, gamma)
+    a = 4.16190627
+    b = -3.28619789
+    c = -2.56282892
+    std = a * (-gamma)**b * np.exp(c*gamma)
+    bcls = bcls * (sigma_default/std)**2 #scaling the map scales the C_ell by the square factor
+
+    # bcls, beta_map = map_power_beta(ell_max=ell_max, beta=beta, gamma=gamma)
     #allows for single frequencies to be entered
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -348,7 +371,7 @@ def full_model(ells, freqs, A, alpha, beta, gamma):
 
     #get auto1x1 term
     moment1x1 = np.zeros((len(freqs),len(ells)))
-    wignersum = get_wigner_sum(ell_sum=ell_max, A=A, alpha=alpha, beta=beta, gamma=gamma)
+    wignersum = get_wigner_sum(ell_max=ell_max, A=A, alpha=alpha, beta=beta, gamma=gamma)
     # wignersum = get_wigner_sum(ell_max, pcls, bcls)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
