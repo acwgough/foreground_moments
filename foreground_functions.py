@@ -240,6 +240,43 @@ def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alph
     return moment0x0
 
 #---------GET WIGNER SUM PART OF EQUATION 35 FOR 1x1moment-------------
+# def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
+#     ells = np.arange(0, ell_max)  #the ells to be summed over
+#     #define an empty array to store the wigner sum in
+#     wignersum = np.zeros_like(ells, dtype=float)
+#     amp_cls = powerlaw(ells, A, alpha)
+#     beta_cls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+#     #defines an array for the factor later, saves time in the loop
+#     # factor = np.zeros((ell_max, ell_max))
+#     # for i in range(ell_max):
+#     #     for j in range(ell_max):
+#     #         factor[i,j] = (2*i+1)*(2*j+1)
+#     # factor = factor/(4*pi)
+#
+#     #can do the array factor with one loop that just stores (2ell+1)/4pi and call two different elements
+#     # factor = np.zeros(ell_max)
+#     # for i in range(ell_max):
+#     #     factor[i] = (2*i+1)
+#     # factor = factor/(np.sqrt(4*pi))
+#     #sqrt 4 pi on bottom so that when two are multiplied together we have
+#     #(2ell1 + 1)(2ell2 + 1)/4pi
+#     factor = np.array([2*i+1 for i in range(384)])/(np.sqrt(4*pi))
+#
+#     for ell1 in ells:
+#         A1 = factor[ell1]
+#         B = amp_cls[ell1]
+#         for ell2 in ells:
+#             #define wignersum to be the array with the sum of the squares of the wigner coefficients
+#             A2 = factor[ell2]
+#             C = beta_cls[ell2]
+#             D = w3j[:,ell1,ell2]
+#             E = A * B * C * D
+#
+#             wignersum += E
+#
+#     return wignersum
+# ---------------------------------------------------------------------
+#attempt to optimize
 def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
     ells = np.arange(0, ell_max)  #the ells to be summed over
     #define an empty array to store the wigner sum in
@@ -247,36 +284,40 @@ def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, si
     amp_cls = powerlaw(ells, A, alpha)
     beta_cls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     #defines an array for the factor later, saves time in the loop
-    # factor = np.zeros((ell_max, ell_max))
+    factor = np.zeros((ell_max, ell_max))
+    for i in range(ell_max):
+        w3j[:,i,:] *= amp_cls
+        w3j[:,:,i] *= beta_cls
+        w3j[:,i,:] *= 2*i+1
+        for j in range(ell_max):
+            w3j[:,:,j] *= 2*j+1
+    wignersum = w3j/(4*pi)
+    wignersum = np.sum(wignersum, 1)
+    wignersum = np.sum(wignersum, 1)
+    # big_ones = np.ones_like(w3j)
+    #
+    # big_amp = big_ones * amp_cls
+    # big_amp = np.transpose(big_amp, (0,2,1)) #put the amp cls in the ell1 dimension
+    #
+    # big_beta = big_ones * beta_cls #beta_cls placed in the ell2 dimension
+    #
     # for i in range(ell_max):
+    #     big_amp[:,i,:] = amp_cls
+    #     big_beta[:,:,i] = beta_cls
     #     for j in range(ell_max):
     #         factor[i,j] = (2*i+1)*(2*j+1)
     # factor = factor/(4*pi)
 
-    #can do the array factor with one loop that just stores (2ell+1)/4pi and call two different elements
-    # factor = np.zeros(ell_max)
-    # for i in range(ell_max):
-    #     factor[i] = (2*i+1)
-    # factor = factor/(np.sqrt(4*pi))
-    #sqrt 4 pi on bottom so that when two are multiplied together we have
-    #(2ell1 + 1)(2ell2 + 1)/4pi
-    factor = np.array([2*i+1 for i in range(384)])/(np.sqrt(4*pi))
-
-    for ell1 in ells:
-        A1 = factor[ell1]
-        B = amp_cls[ell1]
-        for ell2 in ells:
-            #define wignersum to be the array with the sum of the squares of the wigner coefficients
-            A2 = factor[ell2]
-            C = beta_cls[ell2]
-            D = w3j[:,ell1,ell2]
-            E = A * B * C * D
-
-            wignersum += E
+    #insert the factor into the ell1, ell2 direction
+    # factor = big_ones * factor
+    #
+    # #multiply these element wise
+    # total = factor * big_amp * big_beta * w3j
+    # #contract over this big matrix
+    # sum1 = np.sum(total,1)
+    # wignersum = np.sum(sum1,1)
 
     return wignersum
-#---------------------------------------------------------------------
-
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
 def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
