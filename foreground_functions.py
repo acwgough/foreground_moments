@@ -275,7 +275,7 @@ def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alph
 #             wignersum += E
 #
 #     return wignersum
-# ---------------------------------------------------------------------
+# # ---------------------------------------------------------------------
 #attempt to optimize
 def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
     ells = np.arange(0, ell_max)  #the ells to be summed over
@@ -283,42 +283,38 @@ def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, si
     wignersum = np.zeros_like(ells, dtype=float)
     amp_cls = powerlaw(ells, A, alpha)
     beta_cls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+
+    big_amp = amp_cls
+    big_beta = beta_cls
+    print(w3j.shape)
+    print(big_amp.shape)
+    print(big_beta.shape)
+    #calculate the smallest value of N such that 2^N > ell_max
+    N = np.ceil(np.log(ell_max)/np.log(2))
+    for i in range(int(N)):
+        big_amp = np.vstack((big_amp, big_amp))
+        big_amp = np.dstack((big_amp, big_amp))
+
+        big_beta = np.vstack((big_beta, big_beta))
+        big_beta = np.dstack((big_beta, big_beta))
+    print(w3j.shape)
+    print(big_amp.shape)
+    print(big_beta.shape)
+
+
     #defines an array for the factor later, saves time in the loop
-    factor = np.zeros((ell_max, ell_max))
-    for i in range(ell_max):
-        w3j[:,i,:] *= amp_cls
-        w3j[:,:,i] *= beta_cls
-        w3j[:,i,:] *= 2*i+1
-        for j in range(ell_max):
-            w3j[:,:,j] *= 2*j+1
-    wignersum = w3j/(4*pi)
-    wignersum = np.sum(wignersum, 1)
-    wignersum = np.sum(wignersum, 1)
-    # big_ones = np.ones_like(w3j)
-    #
-    # big_amp = big_ones * amp_cls
-    # big_amp = np.transpose(big_amp, (0,2,1)) #put the amp cls in the ell1 dimension
-    #
-    # big_beta = big_ones * beta_cls #beta_cls placed in the ell2 dimension
-    #
+    # factor = np.zeros((ell_max, ell_max))
     # for i in range(ell_max):
-    #     big_amp[:,i,:] = amp_cls
-    #     big_beta[:,:,i] = beta_cls
+    #     w3j[:,i,:] *= amp_cls
+    #     w3j[:,:,i] *= beta_cls
+    #     w3j[:,i,:] *= 2*i+1
     #     for j in range(ell_max):
-    #         factor[i,j] = (2*i+1)*(2*j+1)
-    # factor = factor/(4*pi)
+    #         w3j[:,:,j] *= 2*j+1
+    # wignersum = np.sum(wignersum, (1,2))//(4*pi)
 
-    #insert the factor into the ell1, ell2 direction
-    # factor = big_ones * factor
-    #
-    # #multiply these element wise
-    # total = factor * big_amp * big_beta * w3j
-    # #contract over this big matrix
-    # sum1 = np.sum(total,1)
-    # wignersum = np.sum(sum1,1)
 
-    return wignersum
-
+    return None
+    
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
 def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
     sed_scaling = scale_synch(freqs, beta, nu0=nu0)
