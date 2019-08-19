@@ -226,7 +226,8 @@ def realisation_power(N, freqs, ell_max=ell_max_default, A=A_default, alpha=alph
 def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default):
     sed_scaling = scale_synch(freqs, beta, nu0=nu0)
     ells = np.arange(0,ell_max)
-    pcls =powerlaw(ells, A, alpha)
+    pcls = powerlaw(ells, A, alpha)
+
     #allows for single frequencies to be entered
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -237,7 +238,7 @@ def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alph
 
     if len(freqs)==1:
         moment0x0 = moment0x0[0]
-    return moment0x0
+    return moment0x0[:,30:]
 
 #---------GET WIGNER SUM PART OF EQUATION 35 FOR 1x1moment-------------
 # def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
