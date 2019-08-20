@@ -39,6 +39,8 @@ List of considerations concerning foreground moments project -- Ongoing.
  - minimize is now working for 2d fits (2019-08-12) however is only moving in the alpha, beta, gamma subspace, it does not move from the input value of
    the amplitude.
 
+ - creating the data at higher nside and cutting off avoids the over shooting in the model due to finite nside.
+
 
 ---- going forward ----
  - adding cross spectra

@@ -10,7 +10,11 @@ import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
 
 #define default parameters for functions
 nside_default = 128
+#add a second nside for generating data at higher nside
+nside_1_default = 2*nside_default
 ell_max_default = 3*nside_default
+#make higher nside for generated data at higher nside
+ell_max_1_default = 3*nside_1_default
 A_default = 1.7e3
 alpha_default = -3.0
 beta_default = -3.2
@@ -65,9 +69,8 @@ def scale_synch(nu, beta, nu0=nu0_default):
 #======================================================================
 
 #------generate an amplitude map---------------------------------------
-def map_amp(ell_max=ell_max_default, A=A_default, alpha=alpha_default, nside=nside_default):
+def map_amp(ells, A=A_default, alpha=alpha_default, nside=nside_default):
     #returns input and output powerspectra, and the map
-    ells = np.arange(0,ell_max)
     pcls = powerlaw(ells, A, alpha)
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
     #check_pcls = hp.anafast(amp_map)
@@ -76,8 +79,7 @@ def map_amp(ell_max=ell_max_default, A=A_default, alpha=alpha_default, nside=nsi
 
 
 #--------generate power law beta----------------------------------------
-def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
-    ells = np.arange(0,ell_max)
+def map_power_beta(ells, beta=beta_default, gamma=gamma_default, nside=nside_default):
     bcls = powerlaw(ells, 1, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     #model the standard deviation as a function of gamma
@@ -89,17 +91,17 @@ def map_power_beta(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_def
     std = a * (-gamma)**b * np.exp(c*gamma)
     # std = np.std(beta_map)
     #update beta map to have the correct std dev
-    beta_map = beta_map * sigma / std
+    beta_map = beta_map * sigma_default / std
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta)
     #update the beta_cls
-    bcls = bcls * (sigma/std)**2 #scaling the map scales the C_ell by the square factor
+    bcls = bcls * (sigma_default/std)**2 #scaling the map scales the C_ell by the square factor
     # check_bcls = hp.anafast(beta_map)
     return bcls, beta_map
 
-def bcls(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
-    ells = np.arange(0,ell_max)
+def bcls(ells,  beta=beta_default, gamma=gamma_default):
     bcls = powerlaw(ells, 1, gamma)
+
     #model the standard deviation as a function of gamma
     #model is std = a * (-gamma)^b * exp(c * gamma)
     #best fit parameters 2019-08-08 are stored
@@ -107,14 +109,14 @@ def bcls(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta
     b = -3.28619789
     c = -2.56282892
     std = a * (-gamma)**b * np.exp(c*gamma)
-    bcls *= (sigma/std)**2 #scaling the map scales the C_ell by the square factor
+    bcls *= (sigma_default/std)**2 #scaling the map scales the C_ell by the square factor
     return bcls
 
 
 #------generate maps with constant default beta---------------
 def map_full_const(ells, freqs, params):
     A, alpha = params
-    pcls, amp_map = map_amp(ell_max=len(ells), A=A, alpha=alpha)
+    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
     SED = scale_synch(freqs, beta_default).T
     newmaps = amp_map * SED[..., np.newaxis]
     return newmaps
@@ -122,16 +124,20 @@ def map_full_const(ells, freqs, params):
 #----generate maps with constant given beta-----
 def map_full_const_beta(ells, freqs, params):
     A, alpha, beta = params
-    pcls, amp_map = map_amp(ell_max=len(ells), A=A, alpha=alpha)
+    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
     SED = scale_synch(freqs, beta).T
     newmaps = amp_map * SED[..., np.newaxis]
     return newmaps
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
-def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nu0=nu0_default, nside=nside_default):
-    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    bcls, beta_map = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+def map_full_power(ells, freqs, params, nside=nside_default):
+    A, alpha, beta, gamma = params
+    ell_max = len(ells)
+    sigma=sigma_default
+    nu0=nu0_default
+    pcls, amp_map = map_amp(ells, A=A, alpha=alpha, nside=nside)
+    bcls, beta_map = map_power_beta(ells, beta=beta, gamma=gamma, nside=nside)
 
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
@@ -141,15 +147,21 @@ def map_full_power(freqs, ell_max=ell_max_default, A=A_default, alpha=alpha_defa
         newmaps_beta = newmaps_beta[0]
     return newmaps_beta
 
-def PS_data(freqs, A, alpha, beta, gamma):
-    data_maps = map_full_power(freqs, ell_max=ell_max_default, A=A, alpha=alpha, sigma=sigma_default, gamma=gamma, beta=beta, nu0=nu0_default, nside=nside_default)
+def ps_data(ells, freqs, params):
+    A, alpha, beta, gamma = params
+    long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
+    data_maps = map_full_power(long_ells, freqs, params, nside=2*nside_default)
+
+    #make the data at higher nside
+    # data_maps = map_full_power(ells, freqs, params)
     if type(freqs)==np.ndarray:
-        power_spectrum = np.zeros((len(freqs),ell_max_default))
+        power_spectrum = np.zeros((len(freqs),len(long_ells)))
         for i in range(len(freqs)):
             power_spectrum[i] = hp.anafast(data_maps[i])
     else:
         power_spectrum = hp.anafast(data_maps)
-    return power_spectrum
+    #cut the powerspectrum to the smaller ell value
+    return power_spectrum[:len(ells)]
 
 
 
@@ -160,9 +172,9 @@ def PS_data(freqs, A, alpha, beta, gamma):
 #---------DEFINE FUNCTION FOR 0X0 AUTO--------------------------------
 #from paper we know that 0x0 is SED^2 C_amp^2
 #this gives a set of 0x0 moments at different frequencies
-def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default):
-    sed_scaling = scale_synch(freqs, beta, nu0=nu0)
-    ells = np.arange(0,ell_max)
+def auto0x0(ells, freqs, params):
+    A, alpha, beta = params
+    sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
     pcls = powerlaw(ells, A, alpha)
 
     #allows for single frequencies to be entered
@@ -178,12 +190,12 @@ def auto0x0(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alph
     return moment0x0
 
 
-def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default):
-    ells = np.arange(0, ell_max)  #the ells to be summed over
+def get_wigner_sum(ells, params, nside=nside_default):
+    A, alpha, beta, gamma = params
     #define an empty array to store the wigner sum in
     # wignersum = np.zeros_like(ells, dtype=float)
     amp_cls = powerlaw(ells, A, alpha)
-    beta_cls = bcls(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    beta_cls = bcls(ells, beta=beta, gamma=gamma)
     # beta_cls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
     f = 2*ells+1
 
@@ -191,9 +203,9 @@ def get_wigner_sum(ell_max=ell_max_default, alpha=alpha_default, A=A_default, si
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
-def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default):
-    sed_scaling = scale_synch(freqs, beta, nu0=nu0)
-    ells = np.arange(0,ell_max)
+def auto1x1(ells, freqs, params,  nside=nside_default):
+    A, alpha, beta, gamma = params
+    sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -202,9 +214,9 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
     #this should not generate new maps everytime, the powerspectrum called from the same parameters should always be the same
     #better than using map_amp as we don't need the amp_map, just the input c_ells.
     pcls = powerlaw(ells, A, alpha)
-    wignersum = get_wigner_sum(ell_max=ell_max, alpha=alpha, A=A, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
+    wignersum = get_wigner_sum(ells, params, nside=nside)
     for i in range(len(moment1x1[:])):
-        moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
+        moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
 
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
@@ -213,11 +225,11 @@ def auto1x1(freqs, A=A_default, alpha=alpha_default, sigma=sigma_default, gamma=
 
 #---------DEFINE THE 0X2 MOMENT FOR AUTO SPECTRA------------------------
 #this assumes a power law for beta
-def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu0=nu0_default, beta=beta_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default):
-    sed_scaling = scale_synch(freqs, beta, nu0=nu0)
-    pcls, amp_map = map_amp(ell_max=ell_max, A=A, alpha=alpha, nside=nside)
-    beta_cls = bcls(ell_max=ell_max_default, sigma=sigma_default, gamma=gamma_default, beta=beta_default, nside=nside_default)
-    ells = np.arange(0,ell_max)
+def auto0x2(ells, freqs, params, nside=nside_default):
+    A, alpha, beta, gamma = params
+    sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
+    pcls, amp_map = map_amp(ells, A=A, alpha=alpha, nside=nside)
+    beta_cls = bcls(ells, beta=beta, gamma=gamma)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -231,7 +243,7 @@ def auto0x2(freqs, A=A_default, alpha=alpha_default, ell_max=ell_max_default, nu
 
     sum = A_beta / (4 * pi * 80**gamma) * sum
     for i in range(len(moment0x2[:])):
-        moment0x2[i] = np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * pcls * sum
+        moment0x2[i] = np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * pcls * sum
 
     if len(freqs)==1:
         moment0x2 = moment0x2[0]
@@ -242,9 +254,9 @@ def model(ells, freqs, params):
     #these return the maps, shape (number of freqs, number of pix)
     A, alpha, beta, gamma = params
     ell_max = len(ells)
-    mom0x0 = auto0x0(freqs, A=A, alpha=alpha, beta=beta, ell_max=ell_max)
-    mom1x1 = auto1x1(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma, ell_max=ell_max)
-    mom0x2 = auto0x2(freqs, A=A, alpha=alpha, beta=beta, gamma=gamma, ell_max=ell_max)
+    mom0x0 = auto0x0(ells, freqs, params[:-1]) #as 0x0 doesn't take gamma
+    mom1x1 = auto1x1(ells, freqs, params)
+    mom0x2 = auto0x2(ells, freqs, params)
     model  = mom0x0 + mom1x1 + mom0x2
     return model
 
@@ -263,63 +275,63 @@ def get_chi_square(data, model):
 #this version takes out the realisations, as we'll calculate those averages separately and then pull them in.
 #this version also avoids the quadruple subplot so we can put the residuals on the bottom of each plot.
 
-#TODO: work out why the ticks on the labels are overlapping, clean up plots etc.
-def get_plots(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default):
-    ells = np.arange(0,ell_max)
-    moment0x0 = auto0x0(freqs, beta=beta, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
-    moment1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, ell_max=ell_max, nu0=nu0, nside=nside)
-    moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
-    model = moment0x0+moment1x1+moment0x2
-
-    newmaps = map_full_power(freqs, ell_max=ell_max, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, nu0=nu0, nside=nside)
-
-    for i in range(len(freqs)):
-        anafast=hp.anafast(newmaps[i])
-        chi_square = get_chi_square(anafast,model[i])
-        fig = plt.figure(i, figsize=(11,7))
-        ax = plt.subplot(111)
-        frame1=fig.add_axes((.1,.5,.8,.6))
-        #xstart, ystart, xend, yend [units are fraction of the image frame, from bottom left corner]
-        plt.semilogy(ells[2:], moment0x0[i][2:], label='0x0')
-        plt.semilogy(ells[2:], moment1x1[i][2:], label='1x1')
-        plt.semilogy(ells[2:], moment0x2[i][2:], label='0x2')
-        # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
-        # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
-        plt.semilogy(ells[2:], model[i][2:], 'k', label='0x0 + 1x1 + 0x2')
-        # plt.errorbar(ells[2:], model[i][2:], yerr=cosmic_var[i][2:], fmt='.')
-        plt.semilogy(ells[2:], anafast[2:], 'r', label='anafast')
-        frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
-        # plt.text(0.5,0.95,r'0.5, 0.95',fontsize=14, transform=ax.transAxes)
-        # plt.text(0.5,1.0,r'0.5, 1.0',fontsize=14, transform=ax.transAxes)
-        # plt.text(0.5,1.2,r'0.5, 1.2',fontsize=14, transform=ax.transAxes)
-        plt.text(0.65,1.23,r'$\chi^2 = $' + str(format(chi_square, '.4g')), transform=ax.transAxes, bbox=dict(facecolor='white',edgecolor='0.8',alpha=0.8))
-        plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.' + '\n' + r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta$=' + str(np.round(beta,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r'$, \sigma$=' + str(np.round(sigma,2)) +r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz')
-        # plt.xlabel(r'$\ell$')
-        plt.ylabel(r'$C_\ell$')
-        plt.legend()
-        plt.grid()
-
-        #fractional error plot
-        frac_error = (anafast-model[i])/anafast
-        # ratio = anafast/model[i]
-        frame2=fig.add_axes((.1,.3,.8,.2))
-        plt.plot(ells[2:], frac_error[2:], '.')
-        # plt.plot(ells,ratio, '.')
-        plt.plot(ells[2:], np.zeros_like(ells[2:]))
-        frame2.set_xticklabels([]) #Remove x-tic labels for the 2nd frame
-        plt.ylabel('frac. err.')
-        plt.grid()
-
-        #residuals plot
-        resid = (anafast-model[i])**2
-        frame3=fig.add_axes((.1,.1,.8,.2))
-        plt.semilogy(ells[2:], resid[2:], '.')
-        plt.ylabel(r'$\mathrm{resid}^2$')
-        plt.xlabel(r'$\ell$')
-        plt.grid()
-
-    plt.show()
-    return None
+# #TODO: work out why the ticks on the labels are overlapping, clean up plots etc.
+# def get_plots(freqs, beta=beta_default, ell_max=ell_max_default, A=A_default, alpha=alpha_default, nu0=nu0_default, sigma=sigma_default, gamma=gamma_default, nside=nside_default):
+#     ells = np.arange(0,ell_max)
+#     moment0x0 = auto0x0(freqs, beta=beta, ell_max=ell_max, A=A, alpha=alpha, nu0=nu0)
+#     moment1x1 = auto1x1(freqs, A=A, alpha=alpha, sigma=sigma, gamma=gamma, beta=beta, ell_max=ell_max, nu0=nu0, nside=nside)
+#     moment0x2 = auto0x2(freqs, A=A, alpha=alpha, ell_max=ell_max, nu0=nu0, beta=beta, sigma=sigma, gamma=gamma, nside=nside)
+#     model = moment0x0+moment1x1+moment0x2
+#
+#     newmaps = map_full_power(ells, freqs, params)
+#
+#     for i in range(len(freqs)):
+#         anafast=hp.anafast(newmaps[i])
+#         chi_square = get_chi_square(anafast,model[i])
+#         fig = plt.figure(i, figsize=(11,7))
+#         ax = plt.subplot(111)
+#         frame1=fig.add_axes((.1,.5,.8,.6))
+#         #xstart, ystart, xend, yend [units are fraction of the image frame, from bottom left corner]
+#         plt.semilogy(ells[2:], moment0x0[i][2:], label='0x0')
+#         plt.semilogy(ells[2:], moment1x1[i][2:], label='1x1')
+#         plt.semilogy(ells[2:], moment0x2[i][2:], label='0x2')
+#         # plt.semilogy(ells, moment0x0[i]+moment1x1[i], label='0x0 + 1x1')
+#         # plt.semilogy(ells, moment0x0[i]+moment0x2[i], label='0x0 + 0x2')
+#         plt.semilogy(ells[2:], model[i][2:], 'k', label='0x0 + 1x1 + 0x2')
+#         # plt.errorbar(ells[2:], model[i][2:], yerr=cosmic_var[i][2:], fmt='.')
+#         plt.semilogy(ells[2:], anafast[2:], 'r', label='anafast')
+#         frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
+#         # plt.text(0.5,0.95,r'0.5, 0.95',fontsize=14, transform=ax.transAxes)
+#         # plt.text(0.5,1.0,r'0.5, 1.0',fontsize=14, transform=ax.transAxes)
+#         # plt.text(0.5,1.2,r'0.5, 1.2',fontsize=14, transform=ax.transAxes)
+#         plt.text(0.65,1.23,r'$\chi^2 = $' + str(format(chi_square, '.4g')), transform=ax.transAxes, bbox=dict(facecolor='white',edgecolor='0.8',alpha=0.8))
+#         plt.title(r'$\nu=$' + str(np.round(freqs[i]*1e-9)) + ' GHz.' + '\n' + r'$\alpha$=' + str(np.round(alpha,1))  + r', $\beta$=' + str(np.round(beta,1)) + r', $\gamma$=' + str(np.round(gamma,2)) + r'$, \sigma$=' + str(np.round(sigma,2)) +r', $\nu_0$=' + str(np.round(nu0*1e-9,1)) + ' GHz')
+#         # plt.xlabel(r'$\ell$')
+#         plt.ylabel(r'$C_\ell$')
+#         plt.legend()
+#         plt.grid()
+#
+#         #fractional error plot
+#         frac_error = (anafast-model[i])/anafast
+#         # ratio = anafast/model[i]
+#         frame2=fig.add_axes((.1,.3,.8,.2))
+#         plt.plot(ells[2:], frac_error[2:], '.')
+#         # plt.plot(ells,ratio, '.')
+#         plt.plot(ells[2:], np.zeros_like(ells[2:]))
+#         frame2.set_xticklabels([]) #Remove x-tic labels for the 2nd frame
+#         plt.ylabel('frac. err.')
+#         plt.grid()
+#
+#         #residuals plot
+#         resid = (anafast-model[i])**2
+#         frame3=fig.add_axes((.1,.1,.8,.2))
+#         plt.semilogy(ells[2:], resid[2:], '.')
+#         plt.ylabel(r'$\mathrm{resid}^2$')
+#         plt.xlabel(r'$\ell$')
+#         plt.grid()
+#
+#     plt.show()
+#     return None
 
 
 #write objecctive function chi2 to be minimised by the optimizer
