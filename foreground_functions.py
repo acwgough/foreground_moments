@@ -69,8 +69,9 @@ def scale_synch(nu, beta, nu0=nu0_default):
 #======================================================================
 
 #------generate an amplitude map---------------------------------------
-def map_amp(ells, A=A_default, alpha=alpha_default, nside=nside_default):
+def map_amp(ells, A=A_default, alpha=alpha_default):
     #returns input and output powerspectra, and the map
+    nside = 3*len(ells)
     pcls = powerlaw(ells, A, alpha)
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
     #check_pcls = hp.anafast(amp_map)
@@ -79,7 +80,8 @@ def map_amp(ells, A=A_default, alpha=alpha_default, nside=nside_default):
 
 
 #--------generate power law beta----------------------------------------
-def map_power_beta(ells, beta=beta_default, gamma=gamma_default, nside=nside_default):
+def map_power_beta(ells, beta=beta_default, gamma=gamma_default):
+    nside=3*len(ells)
     bcls = powerlaw(ells, 1, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     #model the standard deviation as a function of gamma
@@ -131,13 +133,13 @@ def map_full_const_beta(ells, freqs, params):
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
-def map_full_power(ells, freqs, params, nside=nside_default):
+def map_full_power(ells, freqs, params):
     A, alpha, beta, gamma = params
     ell_max = len(ells)
     sigma=sigma_default
     nu0=nu0_default
-    pcls, amp_map = map_amp(ells, A=A, alpha=alpha, nside=nside)
-    bcls, beta_map = map_power_beta(ells, beta=beta, gamma=gamma, nside=nside)
+    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
+    bcls, beta_map = map_power_beta(ells, beta=beta, gamma=gamma)
 
     sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
     #make realistic maps
@@ -150,7 +152,7 @@ def map_full_power(ells, freqs, params, nside=nside_default):
 def ps_data(ells, freqs, params):
     A, alpha, beta, gamma = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
-    data_maps = map_full_power(long_ells, freqs, params, nside=2*nside_default)
+    data_maps = map_full_power(long_ells, freqs, params)
 
     #make the data at higher nside
     # data_maps = map_full_power(ells, freqs, params)
@@ -191,7 +193,7 @@ def auto0x0(ells, freqs, params):
     return moment0x0
 
 
-def get_wigner_sum(ells, params, nside=nside_default):
+def get_wigner_sum(ells, params):
     A, alpha, beta, gamma = params
     #over calcualte the wigner sum. Will need to recalculate the w3j matrix
     long_ells = np.arange(2*len(ells))
@@ -203,7 +205,7 @@ def get_wigner_sum(ells, params, nside=nside_default):
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
-def auto1x1(ells, freqs, params,  nside=nside_default):
+def auto1x1(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
 
@@ -214,7 +216,7 @@ def auto1x1(ells, freqs, params,  nside=nside_default):
     #this should not generate new maps everytime, the powerspectrum called from the same parameters should always be the same
     #better than using map_amp as we don't need the amp_map, just the input c_ells.
     pcls = powerlaw(ells, A, alpha)
-    wignersum = get_wigner_sum(ells, params, nside=nside)
+    wignersum = get_wigner_sum(ells, params)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
 
@@ -225,10 +227,10 @@ def auto1x1(ells, freqs, params,  nside=nside_default):
 
 #---------DEFINE THE 0X2 MOMENT FOR AUTO SPECTRA------------------------
 #this assumes a power law for beta
-def auto0x2(ells, freqs, params, nside=nside_default):
+def auto0x2(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
-    pcls, amp_map = map_amp(ells, A=A, alpha=alpha, nside=nside)
+    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
     beta_cls = bcls(ells, beta=beta, gamma=gamma)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
@@ -260,16 +262,16 @@ def model(ells, freqs, params):
     model  = mom0x0 + mom1x1 + mom0x2
     return model
 
-
-#--------get chi_square value for a fit from set of data and the model------
-def get_chi_square(data, model):
-    resid = data-model
-    chi_square = 0
-    for ell in range(2, len(resid)): #ignore monopole and dipole contributions as cosmic variance should be 0
-        cosmic_var = 2/(2*ell+1) * model[ell]**2
-        chi_square += resid[ell]**2 / cosmic_var
-    return chi_square
-
+#
+# #--------get chi_square value for a fit from set of data and the model------
+# def get_chi_square(data, model):
+#     resid = data-model
+#     chi_square = 0
+#     for ell in range(2, len(resid)): #ignore monopole and dipole contributions as cosmic variance should be 0
+#         cosmic_var = 2/(2*ell+1) * model[ell]**2
+#         chi_square += resid[ell]**2 / cosmic_var
+#     return chi_square
+#
 
 
 #this version takes out the realisations, as we'll calculate those averages separately and then pull them in.
@@ -335,25 +337,25 @@ def get_chi_square(data, model):
 
 
 #write objecctive function chi2 to be minimised by the optimizer
-
-def chi2(data, freq, param):
-    #given a map of c_ells (the data), compute the model with alpha, beta, gamma, at freqency
-    #freq, and calculates the chi2 value
-    alpha = param[0]
-    beta = param[1]
-    gamma = param[2]
-    # A = param[3]
-    # sigma = param[4]
-    mom0x0 = auto0x0(freq, beta=beta, ell_max=ell_max_default, A=A_default, alpha=alpha, nu0=nu0_default)
-    mom1x1 = auto1x1(freq, A=A_default, alpha=alpha, sigma=sigma_default, gamma=gamma, beta=beta, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default)
-    mom0x2 = auto0x2(freq, A=A_default, alpha=alpha, ell_max=ell_max_default, nu0=nu0_default, beta=beta, sigma=sigma_default, gamma=gamma, nside=nside_default)
-    model = mom0x0 + mom1x1 + mom0x2
-    residual = data - model
-    chi_square = 0
-    for ell in range(2,len(residual)):
-        cosmic_var = 2/(2*ell+1) * model[ell]**2
-        chi_square += residual[ell]**2 / cosmic_var
-    return chi_square
+#
+# def chi2(data, freq, param):
+#     #given a map of c_ells (the data), compute the model with alpha, beta, gamma, at freqency
+#     #freq, and calculates the chi2 value
+#     alpha = param[0]
+#     beta = param[1]
+#     gamma = param[2]
+#     # A = param[3]
+#     # sigma = param[4]
+#     mom0x0 = auto0x0(freq, beta=beta, ell_max=ell_max_default, A=A_default, alpha=alpha, nu0=nu0_default)
+#     mom1x1 = auto1x1(freq, A=A_default, alpha=alpha, sigma=sigma_default, gamma=gamma, beta=beta, ell_max=ell_max_default, nu0=nu0_default, nside=nside_default)
+#     mom0x2 = auto0x2(freq, A=A_default, alpha=alpha, ell_max=ell_max_default, nu0=nu0_default, beta=beta, sigma=sigma_default, gamma=gamma, nside=nside_default)
+#     model = mom0x0 + mom1x1 + mom0x2
+#     residual = data - model
+#     chi_square = 0
+#     for ell in range(2,len(residual)):
+#         cosmic_var = 2/(2*ell+1) * model[ell]**2
+#         chi_square += residual[ell]**2 / cosmic_var
+#     return chi_square
 
 
 
