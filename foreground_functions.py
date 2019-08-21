@@ -160,8 +160,9 @@ def ps_data(ells, freqs, params):
             power_spectrum[i] = hp.anafast(data_maps[i])
     else:
         power_spectrum = hp.anafast(data_maps)
+
     #cut the powerspectrum to the smaller ell value
-    return power_spectrum[:len(ells)]
+    return power_spectrum[:,:len(ells)]
 
 
 
@@ -192,14 +193,14 @@ def auto0x0(ells, freqs, params):
 
 def get_wigner_sum(ells, params, nside=nside_default):
     A, alpha, beta, gamma = params
-    #define an empty array to store the wigner sum in
-    # wignersum = np.zeros_like(ells, dtype=float)
-    amp_cls = powerlaw(ells, A, alpha)
-    beta_cls = bcls(ells, beta=beta, gamma=gamma)
-    # beta_cls = map_power_beta(ell_max=ell_max, sigma=sigma, gamma=gamma, beta=beta, nside=nside)
-    f = 2*ells+1
+    #over calcualte the wigner sum. Will need to recalculate the w3j matrix
+    long_ells = np.arange(2*len(ells))
+    amp_cls = powerlaw(long_ells, A, alpha)
+    beta_cls = bcls(long_ells, beta=beta, gamma=gamma)
 
-    return 1/(4*pi)*np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j, optimize=True)
+    f = 2*long_ells+1
+
+    return 1/(4*pi)*np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j, optimize=True)[:len(ells)]
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------

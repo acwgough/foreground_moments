@@ -47,6 +47,3 @@ big_w3j = big_w3j**2
 filepath = '/Users/alex/Documents/foreground_w3j/w3j.npy'
 
 np.save(filepath, big_w3j)
-
-        #define wignersum to be the array with the sum of the squares of the wigner coefficients
-        # wignersum += factor[ell1, ell2] * amp_cls[ell1] * beta_cls[ell2] * (w3j**2)
