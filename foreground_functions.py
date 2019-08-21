@@ -197,7 +197,6 @@ def get_wigner_sum(ells, params, nside=nside_default):
     long_ells = np.arange(2*len(ells))
     amp_cls = powerlaw(long_ells, A, alpha)
     beta_cls = bcls(long_ells, beta=beta, gamma=gamma)
-
     f = 2*long_ells+1
 
     return 1/(4*pi)*np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j, optimize=True)[:len(ells)]
