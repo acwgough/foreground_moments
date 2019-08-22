@@ -19,7 +19,7 @@ A_default = 1.7e3
 alpha_default = -3.0
 beta_default = -3.2
 beta_sigma_default = 1.5e-6
-nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choose 95 GHz for best convergences
+# nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choose 95 GHz for best convergences
 
 # #for a set of standard beta_cls to test consistency of w3j function
 # beta_cls = np.load('beta_cls.npy')
@@ -52,14 +52,16 @@ def normed_cmb_thermo_units(nu):
     eX = np.exp(X)
     return eX * X**4 / (eX - 1.)**2
 
-def normed_synch(nu, beta, nu0=nu0_default):
+def normed_synch(nu, beta):
+    nu0_default = 95e9
     if beta is not np.array:
         beta = np.array(beta)
-    return (nu/nu0)**(2.+beta[..., np.newaxis])
+    return (nu/nu0_default)**(2.+beta[..., np.newaxis])
 
 #-------synch SED given a (set of) freqency(ies) and a power-------------------------
-def scale_synch(nu, beta, nu0=nu0_default):
-    unit = normed_synch(nu, beta, nu0=nu0) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
+def scale_synch(nu, beta):
+    nu0 = 95e9
+    unit = normed_synch(nu, beta) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
     return unit
 
 
@@ -71,17 +73,17 @@ def scale_synch(nu, beta, nu0=nu0_default):
 #------generate an amplitude map---------------------------------------
 def map_amp(ells, A=A_default, alpha=alpha_default):
     #returns input and output powerspectra, and the map
-    nside = 3*len(ells)
+    nside = int(len(ells)/3)
     pcls = powerlaw(ells, A, alpha)
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
     #check_pcls = hp.anafast(amp_map)
-    return pcls, amp_map
+    return amp_map
 
 
 
 #--------generate power law beta----------------------------------------
 def map_power_beta(ells, beta=beta_default, gamma=gamma_default):
-    nside=3*len(ells)
+    nside=int(len(ells)/3)
     bcls = powerlaw(ells, 1, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
     #model the standard deviation as a function of gamma
@@ -96,14 +98,10 @@ def map_power_beta(ells, beta=beta_default, gamma=gamma_default):
     beta_map = beta_map * sigma_default / std
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta)
-    #update the beta_cls
-    bcls = bcls * (sigma_default/std)**2 #scaling the map scales the C_ell by the square factor
-    # check_bcls = hp.anafast(beta_map)
-    return bcls, beta_map
+    return beta_map
 
 def bcls(ells,  beta=beta_default, gamma=gamma_default):
     bcls = powerlaw(ells, 1, gamma)
-
     #model the standard deviation as a function of gamma
     #model is std = a * (-gamma)^b * exp(c * gamma)
     #best fit parameters 2019-08-08 are stored
@@ -115,39 +113,37 @@ def bcls(ells,  beta=beta_default, gamma=gamma_default):
     return bcls
 
 
-#------generate maps with constant default beta---------------
-def map_full_const(ells, freqs, params):
-    A, alpha = params
-    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
-    SED = scale_synch(freqs, beta_default).T
-    newmaps = amp_map * SED[..., np.newaxis]
-    return newmaps
+# #------generate maps with constant default beta---------------
+# def map_full_const(ells, freqs, params):
+#     A, alpha = params
+#     amp_map = map_amp(ells, A=A, alpha=alpha)
+#     SED = scale_synch(freqs, beta_default).T
+#     newmaps = amp_map * SED[..., np.newaxis]
+#     return newmaps
 
-#----generate maps with constant given beta-----
-def map_full_const_beta(ells, freqs, params):
-    A, alpha, beta = params
-    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
-    SED = scale_synch(freqs, beta).T
-    newmaps = amp_map * SED[..., np.newaxis]
-    return newmaps
+# #----generate maps with constant given beta-----
+# def map_full_const_beta(ells, freqs, params):
+#     A, alpha, beta = params
+#     amp_map = map_amp(ells, A=A, alpha=alpha)
+#     SED = scale_synch(freqs, beta).T
+#     newmaps = amp_map * SED[..., np.newaxis]
+#     return newmaps
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
 def map_full_power(ells, freqs, params):
     A, alpha, beta, gamma = params
     ell_max = len(ells)
-    sigma=sigma_default
-    nu0=nu0_default
-    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
-    bcls, beta_map = map_power_beta(ells, beta=beta, gamma=gamma)
+    amp_map = map_amp(ells, A=A, alpha=alpha)
+    beta_map = map_power_beta(ells, beta=beta, gamma=gamma)
 
-    sed_scaling_beta = scale_synch(freqs, beta_map, nu0=nu0).T
+    sed_scaling = scale_synch(freqs, beta_map).T
     #make realistic maps
-    newmaps_beta = amp_map * sed_scaling_beta
+    newmaps = amp_map * sed_scaling
     #if only one frequency entered, cut out one dimension of the array so it is just (npix,) not (1,npix,)
-    if len(newmaps_beta[:])==1:
-        newmaps_beta = newmaps_beta[0]
-    return newmaps_beta
+    if len(freqs)==1:
+        newmaps = newmaps[0]
+    return newmaps
 
 def ps_data(ells, freqs, params):
     A, alpha, beta, gamma = params
@@ -177,7 +173,7 @@ def ps_data(ells, freqs, params):
 #this gives a set of 0x0 moments at different frequencies
 def auto0x0(ells, freqs, params):
     A, alpha, beta = params
-    sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
+    sed_scaling = scale_synch(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
 
     #allows for single frequencies to be entered
@@ -200,14 +196,16 @@ def get_wigner_sum(ells, params):
     amp_cls = powerlaw(long_ells, A, alpha)
     beta_cls = bcls(long_ells, beta=beta, gamma=gamma)
     f = 2*long_ells+1
-
-    return 1/(4*pi)*np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j, optimize=True)[:len(ells)]
+    # w3j1 = w3j[:len(ells), :len(ells), :len(ells)]
+    wignersum = np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j, optimize=True)[:len(ells)]
+    return 1/(4*pi)*wignersum
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
 def auto1x1(ells, freqs, params):
     A, alpha, beta, gamma = params
-    sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
+    nu0 = 95e9
+    sed_scaling = scale_synch(freqs, beta)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -218,7 +216,7 @@ def auto1x1(ells, freqs, params):
     pcls = powerlaw(ells, A, alpha)
     wignersum = get_wigner_sum(ells, params)
     for i in range(len(moment1x1[:])):
-        moment1x1[i] =  np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * wignersum
+        moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
 
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
@@ -229,8 +227,9 @@ def auto1x1(ells, freqs, params):
 #this assumes a power law for beta
 def auto0x2(ells, freqs, params):
     A, alpha, beta, gamma = params
-    sed_scaling = scale_synch(freqs, beta, nu0=nu0_default)
-    pcls, amp_map = map_amp(ells, A=A, alpha=alpha)
+    nu0 = 95e9
+    sed_scaling = scale_synch(freqs, beta)
+    pcls = powerlaw(ells, A, alpha)
     beta_cls = bcls(ells, beta=beta, gamma=gamma)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
@@ -245,7 +244,7 @@ def auto0x2(ells, freqs, params):
 
     sum = A_beta / (4 * pi * 80**gamma) * sum
     for i in range(len(moment0x2[:])):
-        moment0x2[i] = np.log(freqs[i]/nu0_default)**2 * sed_scaling[i]**2 * pcls * sum
+        moment0x2[i] = np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * pcls * sum
 
     if len(freqs)==1:
         moment0x2 = moment0x2[0]
