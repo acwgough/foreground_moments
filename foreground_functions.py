@@ -122,18 +122,17 @@ def bcls(ells,  beta=beta_default, gamma=gamma_default):
 #     return newmaps
 
 # #----generate maps with constant given beta-----
-# def map_full_const_beta(ells, freqs, params):
-#     A, alpha, beta = params
-#     amp_map = map_amp(ells, A=A, alpha=alpha)
-#     SED = scale_synch(freqs, beta).T
-#     newmaps = amp_map * SED[..., np.newaxis]
-#     return newmaps
+def map_full_const_beta(ells, freqs, params):
+    A, alpha, beta = params
+    amp_map = map_amp(ells, A=A, alpha=alpha)
+    SED = scale_synch(freqs, beta).T
+    newmaps = amp_map * SED[..., np.newaxis]
+    return newmaps
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
 def map_full_power(ells, freqs, params):
     A, alpha, beta, gamma = params
-    ell_max = len(ells)
     amp_map = map_amp(ells, A=A, alpha=alpha)
     beta_map = map_power_beta(ells, beta=beta, gamma=gamma)
 
@@ -211,9 +210,6 @@ def auto1x1(ells, freqs, params):
         freqs = np.array(freqs)[np.newaxis]
 
     moment1x1 = np.zeros((len(freqs),len(ells)))
-    #this should not generate new maps everytime, the powerspectrum called from the same parameters should always be the same
-    #better than using map_amp as we don't need the amp_map, just the input c_ells.
-    pcls = powerlaw(ells, A, alpha)
     wignersum = get_wigner_sum(ells, params)
     for i in range(len(moment1x1[:])):
         moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
@@ -260,6 +256,23 @@ def model(ells, freqs, params):
     mom0x2 = auto0x2(ells, freqs, params)
     model  = mom0x0 + mom1x1 + mom0x2
     return model
+
+
+
+def chi2(params, ells, freqs, data):
+    chi2=0
+    A, alpha, beta, gamma = params
+    model = model(ells, freqs, params)
+    
+    var = np.zeros((len(freqs),len(ells)))
+    for ell in range(len(ells)):
+        var[:,ell] = 2/(2*ell+1)
+    cosmic_var = var * model**2
+
+    #don't count the first 30 ell in the objective function.
+    chi2 = (data[:,30:] - model[:,30:])**2 / cosmic_var[:,30:]
+    return np.sum(chi2)
+
 
 #
 # #--------get chi_square value for a fit from set of data and the model------
