@@ -32,7 +32,7 @@ gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
 
 
 #load in the w3j matrix
-w3j = np.load('/Users/alex/Documents/foreground_w3j/w3j.npy')
+w3j = np.load('../w3j.npy')
 
 #=====================================================================
 #---------FUNCTIONS FOR AMPLITUDE MAP---------------------------------
