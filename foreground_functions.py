@@ -268,7 +268,7 @@ def chi2(params, ells, freqs, data):
     var = np.zeros((len(freqs),len(ells)))
     for ell in range(len(ells)):
         var[:,ell] = 2/(2*ell+1)
-    cosmic_var = var * model_made**2
+    cosmic_var = var * data**2
 
     #don't count the first 30 ell in the objective function.
     chi2 = (data[:,30:] - model_made[:,30:])**2 / cosmic_var[:,30:]
