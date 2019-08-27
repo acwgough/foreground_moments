@@ -8,6 +8,7 @@ from pyshtools.utils import Wigner3j
 from math import pi
 import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
 
+
 #define default parameters for functions
 nside_default = 128
 #add a second nside for generating data at higher nside
@@ -191,12 +192,12 @@ def auto0x0(ells, freqs, params):
 def get_wigner_sum(ells, params):
     A, alpha, beta, gamma = params
     #over calcualte the wigner sum. Will need to recalculate the w3j matrix
-    long_ells = np.arange(2*len(ells))
+    long_ells = np.arange(len(ells))
     amp_cls = powerlaw(long_ells, A, alpha)
     beta_cls = bcls(long_ells, beta=beta, gamma=gamma)
     f = 2*long_ells+1
-    # w3j1 = w3j[:len(ells), :len(ells), :len(ells)]
-    wignersum = np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j, optimize=True)[:len(ells)]
+    w3j1 = w3j[:len(ells), :len(ells), :len(ells)]
+    wignersum = np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j1, optimize=True)
     return 1/(4*pi)*wignersum
 
 
@@ -262,15 +263,15 @@ def model(ells, freqs, params):
 def chi2(params, ells, freqs, data):
     chi2=0
     A, alpha, beta, gamma = params
-    model = model(ells, freqs, params)
-    
+    model_made = model(ells, freqs, params)
+
     var = np.zeros((len(freqs),len(ells)))
     for ell in range(len(ells)):
         var[:,ell] = 2/(2*ell+1)
-    cosmic_var = var * model**2
+    cosmic_var = var * model_made**2
 
     #don't count the first 30 ell in the objective function.
-    chi2 = (data[:,30:] - model[:,30:])**2 / cosmic_var[:,30:]
+    chi2 = (data[:,30:] - model_made[:,30:])**2 / cosmic_var[:,30:]
     return np.sum(chi2)
 
 
