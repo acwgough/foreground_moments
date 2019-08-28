@@ -4,7 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import healpy as hp
-from pyshtools.utils import Wigner3j
+# from pyshtools.utils import Wigner3j #no longer need this in foreground functions code.
 from math import pi
 import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
 
