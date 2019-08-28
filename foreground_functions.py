@@ -4,7 +4,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import healpy as hp
-# from pyshtools.utils import Wigner3j #no longer need this in foreground functions code.
 from math import pi
 import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
 
@@ -27,12 +26,14 @@ beta_sigma_default = 1.5e-6
 
 #for power law beta
 crit = 2/np.log(10)
-sigma_default = crit/3
+sigma_default = crit/3 #want critical value (for convergence) to correspond to 3 sigma for the map
 gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
-
+nu0 = 95e9
 
 #load in the w3j matrix
 w3j = np.load('../w3j.npy')
+#w3j is written by w3j.py and is stored one directory above as it is too large to
+#push to github, so it has to be made locally.
 
 #=====================================================================
 #---------FUNCTIONS FOR AMPLITUDE MAP---------------------------------
@@ -46,44 +47,62 @@ def powerlaw(ells, amp, alpha):
 
 #defines a normal planck distribution for unit conversion to kelvin
 TCMB = 2.7255  # Kelvin
+T_dust = 20.0 # Kelvin
 hplanck = 6.626070150e-34  # MKS
 kboltz = 1.380649e-23  # MKS
+c_light = 2.99792458e8  # MKS
+
 def normed_cmb_thermo_units(nu):
     X = hplanck * nu / (kboltz * TCMB)
     eX = np.exp(X)
     return eX * X**4 / (eX - 1.)**2
 
 def normed_synch(nu, beta):
-    nu0_default = 95e9
     if beta is not np.array:
         beta = np.array(beta)
-    return (nu/nu0_default)**(2.+beta[..., np.newaxis])
+    return (nu/nu0)**(2.+beta[..., np.newaxis])
 
 #-------synch SED given a (set of) freqency(ies) and a power-------------------------
 def scale_synch(nu, beta):
-    nu0 = 95e9
     unit = normed_synch(nu, beta) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
     return unit
 
+#------dust SED given a (set of) frequency(ies) and a power--------------------------
+# Define blackbody function
+# def blackbody(nu, T):
+#     f = 2  * hplanck / c_light**2
+#     X = hplanck * nu / (kboltz * T)
+#     eX = np.exp(X)
+#     return f * nu**3 / (eX - 1)
 
+def normed_dust(nu, beta):
+    f = 2  * hplanck / c_light**2
+    X = hplanck * nu / (kboltz * T_dust)
+    eX = np.exp(X)
+    if beta is not np.array:
+        beta = np.array(beta)
+    return 1e16*(nu/nu0)**(beta[..., np.newaxis]) * f * nu**3 / (eX - 1)
+
+def scale_dust(nu,beta):
+    unit = normed_dust(nu, beta) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
+    return unit
 
 #======================================================================
 #---------MAP RELATED FUNCTIONS----------------------------------------
 #======================================================================
 
 #------generate an amplitude map---------------------------------------
-def map_amp(ells, A=A_default, alpha=alpha_default):
+def map_amp(ells, params):
+    A, alpha = params
     #returns input and output powerspectra, and the map
     nside = int(len(ells)/3)
     pcls = powerlaw(ells, A, alpha)
     amp_map = hp.synfast(pcls, nside, new=True, verbose=False)
-    #check_pcls = hp.anafast(amp_map)
     return amp_map
 
-
-
 #--------generate power law beta----------------------------------------
-def map_power_beta(ells, beta=beta_default, gamma=gamma_default):
+def map_beta(ells, params):
+    beta, gamma = params
     nside=int(len(ells)/3)
     bcls = powerlaw(ells, 1, gamma)
     beta_map = hp.synfast(bcls, nside, new=True, verbose=False)
@@ -94,14 +113,15 @@ def map_power_beta(ells, beta=beta_default, gamma=gamma_default):
     b = -3.28619789
     c = -2.56282892
     std = a * (-gamma)**b * np.exp(c*gamma)
-    # std = np.std(beta_map)
+    #std = np.std(beta_map)
     #update beta map to have the correct std dev
     beta_map = beta_map * sigma_default / std
     #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta)
     return beta_map
 
-def bcls(ells,  beta=beta_default, gamma=gamma_default):
+def bcls(ells,  params):
+    beta, gamma = params
     bcls = powerlaw(ells, 1, gamma)
     #model the standard deviation as a function of gamma
     #model is std = a * (-gamma)^b * exp(c * gamma)
@@ -114,29 +134,21 @@ def bcls(ells,  beta=beta_default, gamma=gamma_default):
     return bcls
 
 
-# #------generate maps with constant default beta---------------
-# def map_full_const(ells, freqs, params):
-#     A, alpha = params
-#     amp_map = map_amp(ells, A=A, alpha=alpha)
-#     SED = scale_synch(freqs, beta_default).T
-#     newmaps = amp_map * SED[..., np.newaxis]
-#     return newmaps
-
 # #----generate maps with constant given beta-----
 def map_full_const_beta(ells, freqs, params):
     A, alpha, beta = params
-    amp_map = map_amp(ells, A=A, alpha=alpha)
+    amp_map = map_amp(ells, [A, alpha])
     SED = scale_synch(freqs, beta).T
     newmaps = amp_map * SED[..., np.newaxis]
     return newmaps
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
-def map_full_power(ells, freqs, params):
+#-------map for full synch map (with spatial variations)
+def map_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
-    amp_map = map_amp(ells, A=A, alpha=alpha)
-    beta_map = map_power_beta(ells, beta=beta, gamma=gamma)
-
+    amp_map = map_amp(ells, [A, alpha])
+    beta_map = map_beta(ells, [beta, gamma])
     sed_scaling = scale_synch(freqs, beta_map).T
     #make realistic maps
     newmaps = amp_map * sed_scaling
@@ -145,13 +157,66 @@ def map_full_power(ells, freqs, params):
         newmaps = newmaps[0]
     return newmaps
 
-def ps_data(ells, freqs, params):
+#------map for full dust map (with spatial variation) -----------
+def map_dust(ells, freqs, params):
+    A, alpha, beta, gamma = params
+    amp_map = map_amp(ells, [A, alpha])
+    beta_map = map_beta(ells, [beta, gamma])
+    sed_scaling = scale_dust(freqs, beta_map).T
+    #make realistic maps
+    newmaps = amp_map * sed_scaling
+    #if only one frequency entered, cut out one dimension of the array so it is just (npix,) not (1,npix,)
+    if len(freqs)==1:
+        newmaps = newmaps[0]
+    return newmaps
+
+#-----map with both synch and dust
+def map_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    synch_map = map_synch(ells, freqs, [A_s, alpha_s, beta_s, gamma_s])
+    dust_map = map_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
+    return synch_map + dust_map
+
+
+def ps_data_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
-    data_maps = map_full_power(long_ells, freqs, params)
+    data_maps = map_synch(long_ells, freqs, params)
 
     #make the data at higher nside
-    # data_maps = map_full_power(ells, freqs, params)
+    if type(freqs)==np.ndarray:
+        power_spectrum = np.zeros((len(freqs),len(long_ells)))
+        for i in range(len(freqs)):
+            power_spectrum[i] = hp.anafast(data_maps[i])
+    else:
+        power_spectrum = hp.anafast(data_maps)
+
+    #cut the powerspectrum to the smaller ell value
+    return power_spectrum[:,:len(ells)]
+
+def ps_data_dust(ells, freqs, params):
+    A, alpha, beta, gamma = params
+    long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
+    data_maps = map_dust(long_ells, freqs, params)
+
+    #make the data at higher nside
+    if type(freqs)==np.ndarray:
+        power_spectrum = np.zeros((len(freqs),len(long_ells)))
+        for i in range(len(freqs)):
+            power_spectrum[i] = hp.anafast(data_maps[i])
+    else:
+        power_spectrum = hp.anafast(data_maps)
+
+    #cut the powerspectrum to the smaller ell value
+    return power_spectrum[:,:len(ells)]
+
+
+def ps_data_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
+    data_maps = map_fg(long_ells, freqs, params)
+
+    #make the data at higher nside
     if type(freqs)==np.ndarray:
         power_spectrum = np.zeros((len(freqs),len(long_ells)))
         for i in range(len(freqs)):
@@ -167,12 +232,12 @@ def ps_data(ells, freqs, params):
 #=====================================================================
 #---------MOMENT RELATED FUNCTIONS------------------------------------
 #=====================================================================
-
+#these are the stuff for synch models.
 #---------DEFINE FUNCTION FOR 0X0 AUTO--------------------------------
 #from paper we know that 0x0 is SED^2 C_amp^2
 #this gives a set of 0x0 moments at different frequencies
-def auto0x0(ells, freqs, params):
-    A, alpha, beta = params
+def auto0x0_synch(ells, freqs, params):
+    A, alpha, beta, gamma = params
     sed_scaling = scale_synch(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
 
@@ -188,13 +253,36 @@ def auto0x0(ells, freqs, params):
         moment0x0 = moment0x0[0]
     return moment0x0
 
+def auto0x0_dust(ells, freqs, params):
+    A, alpha, beta, gamma = params
+    sed_scaling = scale_dust(freqs, beta)
+    pcls = powerlaw(ells, A, alpha)
+
+    #allows for single frequencies to be entered
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
+    moment0x0 = np.zeros((len(freqs),len(ells)))
+    for i in range(len(moment0x0[:])):
+        moment0x0[i] = pcls * sed_scaling[i]**2
+
+    if len(freqs)==1:
+        moment0x0 = moment0x0[0]
+    return moment0x0
+
+def auto0x0_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    mom0x0_synch = auto0x0_synch(ells, freqs, [A_s, alpha_s, beta_s, gamma_s])
+    mom0x0_dust = auto0x0_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
+    return mom0x0_synch + mom0x0_dust
+
 
 def get_wigner_sum(ells, params):
     A, alpha, beta, gamma = params
     #over calcualte the wigner sum. Will need to recalculate the w3j matrix
     long_ells = np.arange(len(ells))
     amp_cls = powerlaw(long_ells, A, alpha)
-    beta_cls = bcls(long_ells, beta=beta, gamma=gamma)
+    beta_cls = bcls(long_ells, [beta, gamma])
     f = 2*long_ells+1
     w3j1 = w3j[:len(ells), :len(ells), :len(ells)]
     wignersum = np.einsum("i,i,j,j,kij", f, amp_cls, f, beta_cls, w3j1, optimize=True)
@@ -202,9 +290,8 @@ def get_wigner_sum(ells, params):
 
 
 #---------DEFINE THE 1X1 MOMENT FOR AUTO SPECTRA----------------------
-def auto1x1(ells, freqs, params):
+def auto1x1_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
-    nu0 = 95e9
     sed_scaling = scale_synch(freqs, beta)
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
@@ -219,15 +306,35 @@ def auto1x1(ells, freqs, params):
         moment1x1 = moment1x1[0]
     return moment1x1
 
+def auto1x1_dust(ells, freqs, params):
+    A, alpha, beta, gamma = params
+    sed_scaling = scale_dust(freqs, beta)
+
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
+    moment1x1 = np.zeros((len(freqs),len(ells)))
+    wignersum = get_wigner_sum(ells, params)
+    for i in range(len(moment1x1[:])):
+        moment1x1[i] =  np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * wignersum
+
+    if len(freqs)==1:
+        moment1x1 = moment1x1[0]
+    return moment1x1
+
+def auto1x1_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    mom1x1_synch = auto1x1_synch(ells, freqs, [A_s, alpha_s, beta_s, gamma_s])
+    mom1x1_dust =  auto1x1_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
+    return mom1x1_synch + mom1x1_dust
 
 #---------DEFINE THE 0X2 MOMENT FOR AUTO SPECTRA------------------------
 #this assumes a power law for beta
-def auto0x2(ells, freqs, params):
+def auto0x2_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
-    nu0 = 95e9
     sed_scaling = scale_synch(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
-    beta_cls = bcls(ells, beta=beta, gamma=gamma)
+    beta_cls = bcls(ells, [beta, gamma])
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -247,23 +354,74 @@ def auto0x2(ells, freqs, params):
         moment0x2 = moment0x2[0]
     return moment0x2
 
+def auto0x2_dust(ells, freqs, params):
+    A, alpha, beta, gamma = params
+    sed_scaling = scale_dust(freqs, beta)
+    pcls = powerlaw(ells, A, alpha)
+    beta_cls = bcls(ells, [beta, gamma])
+
+    if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
+        freqs = np.array(freqs)[np.newaxis]
+
+    moment0x2 = np.zeros((len(freqs),len(ells)))
+    #the sum part becomes
+    sum = 2 * sp.zeta(-gamma-1) + sp.zeta(-gamma) - 3
+    #multiply by the prefactors of the sum
+    #have to add due to rescaling the beta map to have same std.
+    A_beta = beta_cls[80]
+
+    sum = A_beta / (4 * pi * 80**gamma) * sum
+    for i in range(len(moment0x2[:])):
+        moment0x2[i] = np.log(freqs[i]/nu0)**2 * sed_scaling[i]**2 * pcls * sum
+
+    if len(freqs)==1:
+        moment0x2 = moment0x2[0]
+    return moment0x2
+
+def auto0x2_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    mom0x2_synch = auto0x2_synch(ells, freqs, [A_s, alpha_s, beta_s, gamma_s])
+    mom0x2_dust =  auto0x2_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
+    return mom0x2_synch + mom0x2_dust
+
 #define the full model
-def model(ells, freqs, params):
+def model_synch(ells, freqs, params):
     #these return the maps, shape (number of freqs, number of pix)
     A, alpha, beta, gamma = params
     ell_max = len(ells)
-    mom0x0 = auto0x0(ells, freqs, params[:-1]) #as 0x0 doesn't take gamma
-    mom1x1 = auto1x1(ells, freqs, params)
-    mom0x2 = auto0x2(ells, freqs, params)
+    mom0x0 = auto0x0_synch(ells, freqs, params)
+    mom1x1 = auto1x1_synch(ells, freqs, params)
+    mom0x2 = auto0x2_synch(ells, freqs, params)
+    model  = mom0x0 + mom1x1 + mom0x2
+    return model
+
+def model_dust(ells, freqs, params):
+    #these return the maps, shape (number of freqs, number of pix)
+    A, alpha, beta, gamma = params
+    ell_max = len(ells)
+    mom0x0 = auto0x0_dust(ells, freqs, params)
+    mom1x1 = auto1x1_dust(ells, freqs, params)
+    mom0x2 = auto0x2_dust(ells, freqs, params)
+    model  = mom0x0 + mom1x1 + mom0x2
+    return model
+
+
+def model_fg(ells, freqs, params):
+    #these return the maps, shape (number of freqs, number of pix)
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    ell_max = len(ells)
+    mom0x0 = auto0x0_fg(ells, freqs, params)
+    mom1x1 = auto1x1_fg(ells, freqs, params)
+    mom0x2 = auto0x2_fg(ells, freqs, params)
     model  = mom0x0 + mom1x1 + mom0x2
     return model
 
 
 
-def chi2(params, ells, freqs, data):
+def chi2_synch(params, ells, freqs, data):
     chi2=0
     A, alpha, beta, gamma = params
-    model_made = model(ells, freqs, params)
+    model_made = model_synch(ells, freqs, params)
 
     var = np.zeros((len(freqs),len(ells)))
     for ell in range(len(ells)):
@@ -274,6 +432,33 @@ def chi2(params, ells, freqs, data):
     chi2 = (data[:,30:] - model_made[:,30:])**2 / cosmic_var[:,30:]
     return np.sum(chi2)
 
+def chi2_dust(params, ells, freqs, data):
+    chi2=0
+    A, alpha, beta, gamma = params
+    model_made = model_dust(ells, freqs, params)
+
+    var = np.zeros((len(freqs),len(ells)))
+    for ell in range(len(ells)):
+        var[:,ell] = 2/(2*ell+1)
+    cosmic_var = var * data**2
+
+    #don't count the first 30 ell in the objective function.
+    chi2 = (data[:,30:] - model_made[:,30:])**2 / cosmic_var[:,30:]
+    return np.sum(chi2)
+
+def chi2_fg(params, ells, freqs, data):
+    chi2=0
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    model_made = model_fg(ells, freqs, params)
+
+    var = np.zeros((len(freqs),len(ells)))
+    for ell in range(len(ells)):
+        var[:,ell] = 2/(2*ell+1)
+    cosmic_var = var * data**2
+
+    #don't count the first 30 ell in the objective function.
+    chi2 = (data[:,30:] - model_made[:,30:])**2 / cosmic_var[:,30:]
+    return np.sum(chi2)
 
 #
 # #--------get chi_square value for a fit from set of data and the model------
@@ -560,3 +745,10 @@ def chi2(params, ells, freqs, data):
 #     if len(freqs)==1:
 #         moment0x2 = moment0x2[0]
 #     return moment0x0 + moment1x1 + moment0x2
+# #------generate maps with constant default beta---------------
+# def map_full_const(ells, freqs, params):
+#     A, alpha = params
+#     amp_map = map_amp(ells, A=A, alpha=alpha)
+#     SED = scale_synch(freqs, beta_default).T
+#     newmaps = amp_map * SED[..., np.newaxis]
+#     return newmaps
