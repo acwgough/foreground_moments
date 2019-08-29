@@ -18,7 +18,7 @@ gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
 nu0 = 95e9 ## should be equal to the geometric mean of the high and low freqs.
 
 #load in the w3j matrix
-w3j = np.load('../w3j.npy')
+w3j = np.load('w3j.npy')
 #w3j is written by w3j.py and is stored one directory above as it is too large to
 #push to github, so it has to be made locally.
 

@@ -44,6 +44,6 @@ for ell1 in ells_ext[:ell_sum]:
 big_w3j = big_w3j**2
 #the array w3j now holds all the (ell ell1 ell2) elements in an array. Grab with [: ell1 ell2] element.
 #write this to file
-filepath = '../w3j.npy'
+filepath = 'w3j.npy'
 
 np.save(filepath, big_w3j)
