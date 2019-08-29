@@ -53,7 +53,7 @@ nwalkers, ndim = pos.shape
 backend.reset(nwalkers, ndim)
 
 
-max_n = 100
+max_n = 10
 #can add pooling to speed up potentially.
 #with Pool() as pool:
 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(ells, freqs, data), backend=backend)
