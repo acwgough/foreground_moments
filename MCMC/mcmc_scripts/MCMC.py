@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../../') #takes us to the directory named foreground_functions that housed the foreground_function.py
+sys.path.append('../../') #takes us to the directory named foreground_functions that houses the foreground_function.py
 #and the w3j.npy files
 
 import numpy as np
@@ -62,7 +62,4 @@ max_n = 10
 #with Pool() as pool:
 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(ells, freqs, data), backend=backend)
 sampler.run_mcmc(pos, max_n)
-
-
-
 #saving the MCMC to a file is done through backend

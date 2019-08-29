@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import healpy as hp
 from math import pi
 import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
-import sys #for adding the above directory to the path, to extract the w3j file that is written there.
-sys.path.append('../')
+# import sys #for adding the above directory to the path, to extract the w3j file that is written there.
+# sys.path.append('../')
 
 #define default parameters for functions
 
@@ -17,8 +17,8 @@ sigma_default = crit/3 #want critical value (for convergence) to correspond to 3
 gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
 nu0 = 95e9 ## should be equal to the geometric mean of the high and low freqs.
 
-#load in the w3j matrix
-w3j = np.load('w3j.npy')
+#load in the w3j matrix. Both notebooks and the mcmc scripts are 2 directories down from the main directory, where w3j.npy is stored.
+w3j = np.load('../../w3j.npy')
 #push to github, so it has to be made locally.
 
 #=====================================================================
