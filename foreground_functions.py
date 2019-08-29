@@ -33,7 +33,7 @@ def powerlaw(ells, amp, alpha):
 
 #defines a normal planck distribution for unit conversion to kelvin
 TCMB = 2.7255  # Kelvin
-T_dust = 20.0 # Kelvin
+T_dust = 19.6 # Kelvin # taken from the BICEP paper
 hplanck = 6.626070150e-34  # MKS
 kboltz = 1.380649e-23  # MKS
 c_light = 2.99792458e8  # MKS
