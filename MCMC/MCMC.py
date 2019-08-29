@@ -6,7 +6,7 @@ from scipy.optimize import curve_fit, minimize
 import emcee
 import corner
 from multiprocessing import Pool
-
+#check this filepath
 filename = './MCMC/test_chain_1.h5' #where the MCMC sampler chain will be written
 backend = emcee.backends.HDFBackend(filename)
 
