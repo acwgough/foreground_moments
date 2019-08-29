@@ -6,29 +6,16 @@ import matplotlib.pyplot as plt
 import healpy as hp
 from math import pi
 import scipy.special as sp #for the zeta function sp.zeta() in the 0x2 term
-
+import sys #for adding the above directory to the path, to extract the w3j file that is written there.
+sys.path.append('../')
 
 #define default parameters for functions
-nside_default = 128
-#add a second nside for generating data at higher nside
-nside_1_default = 2*nside_default
-ell_max_default = 3*nside_default
-#make higher nside for generated data at higher nside
-ell_max_1_default = 3*nside_1_default
-A_default = 1.7e3
-alpha_default = -3.0
-beta_default = -3.2
-beta_sigma_default = 1.5e-6
-# nu0_default = 95e9 #to be able to converge between 30 and 300 GHz we should choose 95 GHz for best convergences
-
-# #for a set of standard beta_cls to test consistency of w3j function
-# beta_cls = np.load('beta_cls.npy')
 
 #for power law beta
-crit = 2/np.log(10)
+crit = 2/np.log(10) #10 is the ratio between our highest and lowest frequency 300/30 GHz
 sigma_default = crit/3 #want critical value (for convergence) to correspond to 3 sigma for the map
 gamma_default = -2.5 #must be less than -2 for convergence in 0x2 term
-nu0 = 95e9
+nu0 = 95e9 ## should be equal to the geometric mean of the high and low freqs.
 
 #load in the w3j matrix
 w3j = np.load('../w3j.npy')
