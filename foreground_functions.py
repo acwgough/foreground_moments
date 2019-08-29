@@ -75,13 +75,16 @@ def scale_synch(nu, beta):
 #     eX = np.exp(X)
 #     return f * nu**3 / (eX - 1)
 
-def normed_dust(nu, beta):
-    f = 2  * hplanck / c_light**2
-    X = hplanck * nu / (kboltz * T_dust)
+#define a blackbody esque function/
+def mod_BB(nu, beta, T):
+    X = hplanck*nu/(kboltz*T)
     eX = np.exp(X)
     if beta is not np.array:
         beta = np.array(beta)
-    return 1e16*(nu/nu0)**(beta[..., np.newaxis]) * f * nu**3 / (eX - 1)
+    return nu**(3.+beta[...,np.newaxis])/(eX+1)
+
+def normed_dust(nu, beta):
+    return mod_BB(nu, beta, T_dust)/mod_BB(nu0, beta, T_dust)
 
 def scale_dust(nu,beta):
     unit = normed_dust(nu, beta) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
