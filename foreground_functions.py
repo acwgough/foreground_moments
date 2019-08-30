@@ -124,12 +124,25 @@ def bcls(ells,  params):
 
 
 # #----generate maps with constant given beta-----
-def map_full_const_beta(ells, freqs, params):
+def map_const_beta_synch(ells, freqs, params):
     A, alpha, beta = params
     amp_map = map_amp(ells, [A, alpha])
     SED = scale_synch(freqs, beta).T
     newmaps = amp_map * SED[..., np.newaxis]
     return newmaps
+
+def map_const_beta_dust(ells, freqs, params):
+    A, alpha, beta = params
+    amp_map = map_amp(ells, [A, alpha])
+    SED = scale_dust(freqs, beta).T
+    newmaps = amp_map * SED[..., np.newaxis]
+    return newmaps
+
+def map_const_beta_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, A_d, alpha_d, beta_d = params
+    params_s = params[:3]
+    params_d = params[3:]
+    return map_const_beta_synch(ells, freqs, params_s) + map_const_beta_dust(ells, freqs, params_d)
 
 
 #-------function to generate series of frequency maps with power spectrum for beta_map-------
@@ -180,8 +193,9 @@ def ps_data_synch(ells, freqs, params):
     else:
         power_spectrum = hp.anafast(data_maps)
 
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
     #cut the powerspectrum to the smaller ell value
-    return power_spectrum[:,:len(ells)]
+    return f * power_spectrum[:,:len(ells)]
 
 def ps_data_dust(ells, freqs, params):
     A, alpha, beta, gamma = params
@@ -196,8 +210,9 @@ def ps_data_dust(ells, freqs, params):
     else:
         power_spectrum = hp.anafast(data_maps)
 
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
     #cut the powerspectrum to the smaller ell value
-    return power_spectrum[:,:len(ells)]
+    return f * power_spectrum[:,:len(ells)]
 
 
 def ps_data_fg(ells, freqs, params):
@@ -213,10 +228,58 @@ def ps_data_fg(ells, freqs, params):
     else:
         power_spectrum = hp.anafast(data_maps)
 
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
     #cut the powerspectrum to the smaller ell value
-    return power_spectrum[:,:len(ells)]
+    return f * power_spectrum[:,:len(ells)]
 
 
+def const_ps_data_synch(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s = params
+    long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
+    data_maps = map_const_beta_synch(long_ells, freqs, [A_s, alpha_s, beta_s])
+    #make the data at higher nside
+    if type(freqs)==np.ndarray:
+        power_spectrum = np.zeros((len(freqs),len(long_ells)))
+        for i in range(len(freqs)):
+            power_spectrum[i] = hp.anafast(data_maps[i])
+    else:
+        power_spectrum = hp.anafast(data_maps)
+
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
+    #cut the powerspectrum to the smaller ell value
+    return f * power_spectrum[:,:len(ells)]
+
+def const_ps_data_dust(ells, freqs, params):
+    A_d, alpha_d, beta_d, gamma_d = params
+    long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
+    data_maps = map_const_beta_dust(long_ells, freqs, [A_d, alpha_d, beta_d])
+    #make the data at higher nside
+    if type(freqs)==np.ndarray:
+        power_spectrum = np.zeros((len(freqs),len(long_ells)))
+        for i in range(len(freqs)):
+            power_spectrum[i] = hp.anafast(data_maps[i])
+    else:
+        power_spectrum = hp.anafast(data_maps)
+
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
+    #cut the powerspectrum to the smaller ell value
+    return f * power_spectrum[:,:len(ells)]
+
+
+def const_ps_data_fg(ells, freqs, params):
+    A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
+    long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
+    data_maps = map_const_beta_fg(long_ells, freqs, [A_s, alpha_s, beta_s, A_d, alpha_d, beta_d])
+    #make the data at higher nside
+    if type(freqs)==np.ndarray:
+        power_spectrum = np.zeros((len(freqs),len(long_ells)))
+        for i in range(len(freqs)):
+            power_spectrum[i] = hp.anafast(data_maps[i])
+    else:
+        power_spectrum = hp.anafast(data_maps)
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
+    #cut the powerspectrum to the smaller ell value
+    return f * power_spectrum[:,:len(ells)]
 
 #=====================================================================
 #---------MOMENT RELATED FUNCTIONS------------------------------------
@@ -229,6 +292,7 @@ def auto0x0_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_synch(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
 
     #allows for single frequencies to be entered
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
@@ -240,12 +304,13 @@ def auto0x0_synch(ells, freqs, params):
 
     if len(freqs)==1:
         moment0x0 = moment0x0[0]
-    return moment0x0
+    return f*moment0x0
 
 def auto0x0_dust(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_dust(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
 
     #allows for single frequencies to be entered
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
@@ -257,7 +322,7 @@ def auto0x0_dust(ells, freqs, params):
 
     if len(freqs)==1:
         moment0x0 = moment0x0[0]
-    return moment0x0
+    return f*moment0x0
 
 def auto0x0_fg(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
@@ -282,6 +347,7 @@ def get_wigner_sum(ells, params):
 def auto1x1_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_synch(freqs, beta)
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -293,11 +359,12 @@ def auto1x1_synch(ells, freqs, params):
 
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
-    return moment1x1
+    return f*moment1x1
 
 def auto1x1_dust(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_dust(freqs, beta)
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -309,7 +376,7 @@ def auto1x1_dust(ells, freqs, params):
 
     if len(freqs)==1:
         moment1x1 = moment1x1[0]
-    return moment1x1
+    return f*moment1x1
 
 def auto1x1_fg(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
@@ -324,6 +391,7 @@ def auto0x2_synch(ells, freqs, params):
     sed_scaling = scale_synch(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
     beta_cls = bcls(ells, [beta, gamma])
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -341,13 +409,14 @@ def auto0x2_synch(ells, freqs, params):
 
     if len(freqs)==1:
         moment0x2 = moment0x2[0]
-    return moment0x2
+    return f*moment0x2
 
 def auto0x2_dust(ells, freqs, params):
     A, alpha, beta, gamma = params
     sed_scaling = scale_dust(freqs, beta)
     pcls = powerlaw(ells, A, alpha)
     beta_cls = bcls(ells, [beta, gamma])
+    f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
 
     if type(freqs)==np.float64 or type(freqs)==int or type(freqs)==float:
         freqs = np.array(freqs)[np.newaxis]
@@ -365,7 +434,7 @@ def auto0x2_dust(ells, freqs, params):
 
     if len(freqs)==1:
         moment0x2 = moment0x2[0]
-    return moment0x2
+    return f*moment0x2
 
 def auto0x2_fg(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
@@ -377,7 +446,6 @@ def auto0x2_fg(ells, freqs, params):
 def model_synch(ells, freqs, params):
     #these return the maps, shape (number of freqs, number of pix)
     A, alpha, beta, gamma = params
-    ell_max = len(ells)
     mom0x0 = auto0x0_synch(ells, freqs, params)
     mom1x1 = auto1x1_synch(ells, freqs, params)
     mom0x2 = auto0x2_synch(ells, freqs, params)
@@ -387,7 +455,6 @@ def model_synch(ells, freqs, params):
 def model_dust(ells, freqs, params):
     #these return the maps, shape (number of freqs, number of pix)
     A, alpha, beta, gamma = params
-    ell_max = len(ells)
     mom0x0 = auto0x0_dust(ells, freqs, params)
     mom1x1 = auto1x1_dust(ells, freqs, params)
     mom0x2 = auto0x2_dust(ells, freqs, params)
@@ -398,12 +465,9 @@ def model_dust(ells, freqs, params):
 def model_fg(ells, freqs, params):
     #these return the maps, shape (number of freqs, number of pix)
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
-    ell_max = len(ells)
-    mom0x0 = auto0x0_fg(ells, freqs, params)
-    mom1x1 = auto1x1_fg(ells, freqs, params)
-    mom0x2 = auto0x2_fg(ells, freqs, params)
-    model  = mom0x0 + mom1x1 + mom0x2
-    return model
+    params_s = params[:4]
+    params_d = params[4:]
+    return model_synch(ells, freqs, params_s) + model_dust(ells, freqs, params_d)
 
 
 
