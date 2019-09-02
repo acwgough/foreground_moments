@@ -1,0 +1,159 @@
+=========================================================
+Job submitted date = Fri Aug 30 12:10:55 BST 2019
+1 nodes ( processes per node )
+1 hosts used: comp18
+Job output begins
+-----------------
+
+Traceback (most recent call last):
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 182, in make_fid
+    fid = h5f.open(name, h5f.ACC_RDWR, fapl=fapl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 85, in h5py.h5f.open
+OSError: Unable to open file (unable to lock file, errno = 11, error message = 'Resource temporarily unavailable')
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "MCMC.py", line 57, in <module>
+    backend.reset(nwalkers, ndim)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 68, in reset
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 58, in open
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 394, in __init__
+    swmr=swmr)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 184, in make_fid
+    fid = h5f.create(name, h5f.ACC_EXCL, fapl=fapl, fcpl=fcpl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 105, in h5py.h5f.create
+OSError: Unable to create file (unable to open file: name = '../mcmc_chains/test_chain.h5', errno = 17, error message = 'File exists', flags = 15, o_flags = c2)
+srun: error: comp18: task 1: Exited with exit code 1
+Traceback (most recent call last):
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 182, in make_fid
+    fid = h5f.open(name, h5f.ACC_RDWR, fapl=fapl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 85, in h5py.h5f.open
+OSError: Unable to open file (unable to lock file, errno = 11, error message = 'Resource temporarily unavailable')
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "MCMC.py", line 57, in <module>
+    backend.reset(nwalkers, ndim)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 68, in reset
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 58, in open
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 394, in __init__
+    swmr=swmr)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 184, in make_fid
+    fid = h5f.create(name, h5f.ACC_EXCL, fapl=fapl, fcpl=fcpl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 105, in h5py.h5f.create
+OSError: Unable to create file (unable to open file: name = '../mcmc_chains/test_chain.h5', errno = 17, error message = 'File exists', flags = 15, o_flags = c2)
+Traceback (most recent call last):
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 182, in make_fid
+    fid = h5f.open(name, h5f.ACC_RDWR, fapl=fapl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 85, in h5py.h5f.open
+OSError: Unable to open file (unable to lock file, errno = 11, error message = 'Resource temporarily unavailable')
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "MCMC.py", line 57, in <module>
+    backend.reset(nwalkers, ndim)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 68, in reset
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 58, in open
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 394, in __init__
+    swmr=swmr)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 184, in make_fid
+    fid = h5f.create(name, h5f.ACC_EXCL, fapl=fapl, fcpl=fcpl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 105, in h5py.h5f.create
+OSError: Unable to create file (unable to open file: name = '../mcmc_chains/test_chain.h5', errno = 17, error message = 'File exists', flags = 15, o_flags = c2)
+srun: error: comp18: task 0: Exited with exit code 1
+srun: error: comp18: task 5: Exited with exit code 1
+Traceback (most recent call last):
+  File "MCMC.py", line 64, in <module>
+    sampler.run_mcmc(pos, max_n)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 346, in run_mcmc
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 284, in sample
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 150, in grow
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/backend.py", line 153, in _check_blobs
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 89, in has_blobs
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 58, in open
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 394, in __init__
+    swmr=swmr)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 170, in make_fid
+    fid = h5f.open(name, flags, fapl=fapl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 85, in h5py.h5f.open
+OSError: Unable to open file (unable to lock file, errno = 11, error message = 'Resource temporarily unavailable')
+Traceback (most recent call last):
+  File "MCMC.py", line 64, in <module>
+    sampler.run_mcmc(pos, max_n)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 346, in run_mcmc
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 284, in sample
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 150, in grow
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/backend.py", line 153, in _check_blobs
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 89, in has_blobs
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 58, in open
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 394, in __init__
+    swmr=swmr)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/files.py", line 170, in make_fid
+    fid = h5f.open(name, flags, fapl=fapl)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "h5py/h5f.pyx", line 85, in h5py.h5f.open
+OSError: Unable to open file (unable to lock file, errno = 11, error message = 'Resource temporarily unavailable')
+srun: error: comp18: tasks 6-7: Exited with exit code 1
+Traceback (most recent call last):
+  File "MCMC.py", line 64, in <module>
+    sampler.run_mcmc(pos, max_n)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 346, in run_mcmc
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 313, in sample
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 184, in save_step
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/dataset.py", line 685, in __setitem__
+    selection = sel.select(self.shape, args, dsid=self.id)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 94, in select
+    sel[args]
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 261, in __getitem__
+    start, count, step, scalar = _handle_simple(self.shape,args)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 457, in _handle_simple
+    x,y,z = _translate_int(int(arg), length)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 477, in _translate_int
+    raise ValueError("Index (%s) out of range (0-%s)" % (exp, length-1))
+ValueError: Index (10) out of range (0-9)
+Traceback (most recent call last):
+  File "MCMC.py", line 64, in <module>
+    sampler.run_mcmc(pos, max_n)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 346, in run_mcmc
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/ensemble.py", line 313, in sample
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/emcee-3.0rc2-py3.6.egg/emcee/backends/hdf.py", line 184, in save_step
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/dataset.py", line 685, in __setitem__
+    selection = sel.select(self.shape, args, dsid=self.id)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 94, in select
+    sel[args]
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 261, in __getitem__
+    start, count, step, scalar = _handle_simple(self.shape,args)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 457, in _handle_simple
+    x,y,z = _translate_int(int(arg), length)
+  File "/mnt/zfsusers/acwgough/.local/lib/python3.6/site-packages/h5py/_hl/selections.py", line 477, in _translate_int
+    raise ValueError("Index (%s) out of range (0-%s)" % (exp, length-1))
+ValueError: Index (10) out of range (0-9)
+srun: error: comp18: tasks 2,4: Exited with exit code 1
+---------------
+Job output ends
+=========================================================
+PBS job: finished date = Fri Aug 30 12:12:27 BST 2019
+Total run time : 0 Hours 1 Minutes 29 Seconds
+=========================================================
