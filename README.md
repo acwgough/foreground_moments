@@ -37,8 +37,8 @@ This directory houses two subdirectories: mcmc_chains and mcmc_scripts. The mcmc
 # Function files
 ## `w3j.py`
 This python3 script calculates the Wigner 3j coefficients needed for the 1x1 moment of the model. As these are computationally intensive, the w3j.py script writes them to a numpy file in the same directory called `w3j.npy`. This file is too large to push to GitHub, so `w3j.py` should be run to produce this file before anything else is done with this repo. `w3j.py` takes one input which is the maximum ell you'd like to consider (e.g. 384 for a map with nside=128). It then calculates an array of shape (ell_max, ell_max, ell_max) with elements [i,j,k] corresponding to the value
-/ i  j  k \
-\ 0  0  0 /
+`/ i  j  k \
+\ 0  0  0 /`
 and then squares this array elementwise (as the 1x1 moment depends only on the square of these elements).
 
 ## `foreground_functions.py`
