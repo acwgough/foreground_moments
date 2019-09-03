@@ -44,6 +44,9 @@ This python3 script calculates the Wigner 3j coefficients needed for the 1x1 mom
 
 and then squares this array elementwise (as the 1x1 moment depends only on the square of these elements).
 
+### Dependencies
+This script used the `pyshtools.utils.Wigner3j` function to calcualte the w3j coefficients. It also used `healpy` to generate the maps and various `numpy` operations.
+
 ## `foreground_functions.py`
 This is the most important file in the repo. Here are the functions used to generate data from a set of parameters, and also generate the model from a set of parameters.
 
