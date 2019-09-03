@@ -53,14 +53,6 @@ def scale_synch(nu, beta):
     unit = normed_synch(nu, beta) * normed_cmb_thermo_units(nu0) / normed_cmb_thermo_units(nu)
     return unit
 
-#------dust SED given a (set of) frequency(ies) and a power--------------------------
-# Define blackbody function
-# def blackbody(nu, T):
-#     f = 2  * hplanck / c_light**2
-#     X = hplanck * nu / (kboltz * T)
-#     eX = np.exp(X)
-#     return f * nu**3 / (eX - 1)
-
 #define a blackbody esque function/
 def mod_BB(nu, beta, T):
     X = hplanck*nu/(kboltz*T)
@@ -102,10 +94,7 @@ def map_beta(ells, params):
     b = -3.28619789
     c = -2.56282892
     std = a * (-gamma)**b * np.exp(c*gamma)
-    #std = np.std(beta_map)
-    #update beta map to have the correct std dev
     beta_map = beta_map * sigma_default / std
-    #update the map so that the mean is correct
     beta_map -= (np.mean(beta_map) - beta)
     return beta_map
 
@@ -123,7 +112,7 @@ def bcls(ells,  params):
     return bcls
 
 
-# #----generate maps with constant given beta-----
+# #----generate maps with constant beta, given beta-----
 def map_const_beta_synch(ells, freqs, params):
     A, alpha, beta = params
     amp_map = map_amp(ells, [A, alpha])
@@ -172,19 +161,24 @@ def map_dust(ells, freqs, params):
         newmaps = newmaps[0]
     return newmaps
 
-#-----map with both synch and dust
+#-----map with both synch and dust---------
 def map_fg(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
     synch_map = map_synch(ells, freqs, [A_s, alpha_s, beta_s, gamma_s])
     dust_map = map_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
     return synch_map + dust_map
 
+#===================================================
+##------------POWER SPECTRUM FUNCTIONS--------------
+#===================================================
 
+#generate just the power spectrum from a set of parameters (synch)
+#note that we generate the data at twice the nside that we actually want to plot, to
+#avoid finite pixelation of the map causing differences between model and anafast.
 def ps_data_synch(ells, freqs, params):
     A, alpha, beta, gamma = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
     data_maps = map_synch(long_ells, freqs, params)
-
     #make the data at higher nside
     if type(freqs)==np.ndarray:
         power_spectrum = np.zeros((len(freqs),len(long_ells)))
@@ -197,6 +191,7 @@ def ps_data_synch(ells, freqs, params):
     #cut the powerspectrum to the smaller ell value
     return f * power_spectrum[:,:len(ells)]
 
+#generate just the power spectrum from a set of parameters (dust)
 def ps_data_dust(ells, freqs, params):
     A, alpha, beta, gamma = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
@@ -214,7 +209,7 @@ def ps_data_dust(ells, freqs, params):
     #cut the powerspectrum to the smaller ell value
     return f * power_spectrum[:,:len(ells)]
 
-
+#generate just the power spectrum from a set of parameters (synch + dust)
 def ps_data_fg(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
@@ -232,7 +227,7 @@ def ps_data_fg(ells, freqs, params):
     #cut the powerspectrum to the smaller ell value
     return f * power_spectrum[:,:len(ells)]
 
-
+#create powerspectrum with a constant beta on the sky (synch)
 def const_ps_data_synch(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
@@ -249,6 +244,7 @@ def const_ps_data_synch(ells, freqs, params):
     #cut the powerspectrum to the smaller ell value
     return f * power_spectrum[:,:len(ells)]
 
+#create powerspectrum with a constant beta on the sky (dust)
 def const_ps_data_dust(ells, freqs, params):
     A_d, alpha_d, beta_d, gamma_d = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
@@ -265,7 +261,7 @@ def const_ps_data_dust(ells, freqs, params):
     #cut the powerspectrum to the smaller ell value
     return f * power_spectrum[:,:len(ells)]
 
-
+#create powerspectrum with a constant beta on the sky (synch+dust)
 def const_ps_data_fg(ells, freqs, params):
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
     long_ells = np.arange(2 * len(ells)) #make ells that are 2 times longer (corresponding to double the nside)
@@ -280,6 +276,7 @@ def const_ps_data_fg(ells, freqs, params):
     f = ells * (ells + 1)/(2*pi) #conversion factor from C_ells to D_ells
     #cut the powerspectrum to the smaller ell value
     return f * power_spectrum[:,:len(ells)]
+
 
 #=====================================================================
 #---------MOMENT RELATED FUNCTIONS------------------------------------
@@ -331,6 +328,9 @@ def auto0x0_fg(ells, freqs, params):
     return mom0x0_synch + mom0x0_dust
 
 
+
+
+#------------Define the wignersum part of the 1x1 moment--------------
 def get_wigner_sum(ells, params):
     A, alpha, beta, gamma = params
     #over calcualte the wigner sum. Will need to recalculate the w3j matrix
@@ -383,6 +383,7 @@ def auto1x1_fg(ells, freqs, params):
     mom1x1_synch = auto1x1_synch(ells, freqs, [A_s, alpha_s, beta_s, gamma_s])
     mom1x1_dust =  auto1x1_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
     return mom1x1_synch + mom1x1_dust
+
 
 #---------DEFINE THE 0X2 MOMENT FOR AUTO SPECTRA------------------------
 #this assumes a power law for beta
@@ -442,6 +443,10 @@ def auto0x2_fg(ells, freqs, params):
     mom0x2_dust =  auto0x2_dust(ells, freqs, [A_d, alpha_d, beta_d, gamma_d])
     return mom0x2_synch + mom0x2_dust
 
+
+#================================================================
+###----------------MODEL IN FULL---------------------------------
+#================================================================
 #define the full model
 def model_synch(ells, freqs, params):
     #these return the maps, shape (number of freqs, number of pix)
@@ -470,7 +475,9 @@ def model_fg(ells, freqs, params):
     return model_synch(ells, freqs, params_s) + model_dust(ells, freqs, params_d)
 
 
-
+#=========================================================
+###-------DEFINE OBJECTIVE FUNCTIONS FOR FITTING----------
+#=========================================================
 def chi2_synch(params, ells, freqs, data):
     chi2=0
     A, alpha, beta, gamma = params
@@ -513,6 +520,11 @@ def chi2_fg(params, ells, freqs, data):
     chi2 = (data[:,30:] - model_made[:,30:])**2 / cosmic_var[:,30:]
     return np.sum(chi2)
 
+
+
+
+#OLD FUNCTIONS THAT HAVE BEEN USED AT VARIOUS STAGES OF THIS PROJECT. AS FILES HAVE BEEN RESTRUCTURE
+#AND FUNCTIONS RENAMED, THESE WILL NOT WORK AS THEY ARE CURRENTLY WRITTEN.
 #
 # #--------get chi_square value for a fit from set of data and the model------
 # def get_chi_square(data, model):

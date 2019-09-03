@@ -60,6 +60,6 @@ backend.reset(nwalkers, ndim)
 max_n = 10
 #can add pooling to speed up potentially.
 #with Pool() as pool:
-sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(ells, freqs, data), backend=backend)
+sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(ells, freqs, data), store=True, backend=backend)
 sampler.run_mcmc(pos, max_n)
 #saving the MCMC to a file is done through backend
