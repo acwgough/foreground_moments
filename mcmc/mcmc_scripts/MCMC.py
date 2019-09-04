@@ -11,7 +11,7 @@ import emcee
 import corner
 from multiprocessing import Pool
 #check this filepath
-filename = '../mcmc_chains/test_chain.h5' #where the MCMC sampler chain will be written
+filename = '/mnt/zfsusers/acwgough/foreground_moments/mcmc/mcmc_chains/test_chain2.h5' #where the MCMC sampler chain will be written
 backend = emcee.backends.HDFBackend(filename)
 
 #define the input parameters for a synch only MCMC
