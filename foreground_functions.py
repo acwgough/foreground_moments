@@ -482,9 +482,8 @@ def chi2_synch(params, ells, freqs, data):
     chi2=0
     A, alpha, beta, gamma = params
     model_made = model_synch(ells, freqs, params)
-    #convert data_dls back to C_ells for the cosmic variance
-    data_cls = np.zeros(len(ells))
-    data_cls[1:] = data[1:] * (2*pi)/(ells*(ells+1)) #avoids a division by 0 error
+    data_cls = np.zeros_like(data)
+    data_cls[:,1:] = data[:,1:] * (2*pi)/(ells[1:]*(ells[1:]+1)) #avoids a division by 0 error
 
     var = np.zeros((len(freqs),len(ells)))
     for ell in range(len(ells)):
@@ -498,8 +497,8 @@ def chi2_dust(params, ells, freqs, data):
     chi2=0
     A, alpha, beta, gamma = params
     model_made = model_dust(ells, freqs, params)
-    data_cls = np.zeros(len(ells))
-    data_cls[1:] = data[1:] * (2*pi)/(ells*(ells+1)) #avoids a division by 0 error
+    data_cls = np.zeros_like(data)
+    data_cls[:,1:] = data[:,1:] * (2*pi)/(ells[1:]*(ells[1:]+1)) #avoids a division by 0 error
 
     var = np.zeros((len(freqs),len(ells)))
     for ell in range(len(ells)):
@@ -513,8 +512,8 @@ def chi2_fg(params, ells, freqs, data):
     chi2=0
     A_s, alpha_s, beta_s, gamma_s, A_d, alpha_d, beta_d, gamma_d = params
     model_made = model_fg(ells, freqs, params)
-    data_cls = np.zeros(len(ells))
-    data_cls[1:] = data[1:] * (2*pi)/(ells*(ells+1)) #avoids a division by 0 error 
+    data_cls = np.zeros_like(data)
+    data_cls[:,1:] = data[:,1:] * (2*pi)/(ells[1:]*(ells[1:]+1)) #avoids a division by 0 error
     var = np.zeros((len(freqs),len(ells)))
     for ell in range(len(ells)):
         var[:,ell] = 2/(2*ell+1)

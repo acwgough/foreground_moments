@@ -8,16 +8,15 @@ import matplotlib.pyplot as plt
 import foreground_functions as ff
 from scipy.optimize import curve_fit, minimize
 import emcee
-import corner
 from multiprocessing import Pool
 #check this filepath
-filename = '/mnt/zfsusers/acwgough/foreground_moments/mcmc/mcmc_chains/test_chain2.h5' #where the MCMC sampler chain will be written
+filename = '../chains/chain.h5' #where the MCMC sampler chain will be written
 backend = emcee.backends.HDFBackend(filename)
 
-#define the input parameters for a synch only MCMC
-A = 1.7e3
-alpha = -3.0
-beta = -3.2
+#define the input parameters for a synch only MCMC (based on BICEP values)
+A = 2.257e-07
+alpha = -2.6
+beta = -3.1
 gamma = -2.5
 ells = np.arange(384) #corresponds to nside of 128
 freqs = np.linspace(30, 300, 10)*1.e9
@@ -34,6 +33,8 @@ soln = minimize(ff.chi2_synch, initial, args=(ells, freqs, data),
                    method='L-BFGS-B', bounds=((None, None), (None, None), (None, None), (-6.0, -2.01)))
 #these are the maximum likelihood values
 A_ml, alpha_ml, beta_ml, gamma_ml = soln.x
+print(soln.x)
+print('Minimized')
 #-------------------------------------------
 
 #define priors
@@ -59,7 +60,9 @@ backend.reset(nwalkers, ndim)
 
 max_n = 10
 #can add pooling to speed up potentially.
-#with Pool() as pool:
-sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(ells, freqs, data), store=True, backend=backend)
-sampler.run_mcmc(pos, max_n, store=True)
+#with Pool() as pool: #remove backend=backend
+sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(ells, freqs, data), backend=backend)
+sampler.run_mcmc(pos, max_n, store==True)
+print('MCMC run')
+# np.save(filename, sampler.chain)
 #saving the MCMC to a file is done through backend
