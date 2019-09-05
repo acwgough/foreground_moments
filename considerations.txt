@@ -7,21 +7,10 @@ List of considerations concerning foreground moments project -- Ongoing.
  - the truncation effect of the w3j sum in the 1x1 term
         - this does not appear to have a large effect empirically
 
- - consistency tests should continue to be done on the w3j function after the stages of optimisation
-
 
 ---- realisation -----
  - the data fluctuate due to cosmic variance in each realisation, quantifying this effect is important
 
- - the model (the 1x1 and 0x2) fluctuate with realisation due to the beta map standardisation of sigma
-        - can partially negate this by calculating the 1x1 and 0x2 in the same function, so from the same bcls each time
-        - try to find a functional form relating the needed amplitude of the beta map to the gamma exponent, so we can
-          make it independent of realisation
-           ---FIXED as of 2019-08-12
-
- - chi2 values of a fit vary within an order of magnitude due to realisation
-        - was previously much worse (up to 5-6 orders) but those were due to mono/dipole effects
-        - this is probably fine and within cosmic variance, error plots with cosmic variance should be made though
 
 ---- convergence ----
  - we currently have the maps set up so the std of the beta map is 1/3 the critical value for convergence. How close can we get
@@ -32,17 +21,18 @@ List of considerations concerning foreground moments project -- Ongoing.
  - Condition for gamma < -2, excludes possibility of white noise. This is possibly related to validity of expansion.
 
 ---- fitting ----
- - why are the curve fitting programs (curve_fit and minimize) not working? Is this solely due to degeneracy and poor starting positions,
-   or is there something wrong with the functions?
-        - I think it's likely there's a bug in the functions themselves, on top of the degeneracy in the model parameters.
+ - creating the data at higher nside and cutting off avoids the over shooting in the model due to finite nside. Should probably modify the objective
+   function eventually to quantify this effect.
 
- - minimize is now working for 2d fits (2019-08-12) however is only moving in the alpha, beta, gamma subspace, it does not move from the input value of
-   the amplitude.
+---- mcmc ----
+ - need to do tests for convergence and consistency with the mcmcs.
 
- - creating the data at higher nside and cutting off avoids the over shooting in the model due to finite nside.
+ - investigate the effect of priors, even nonphysical ones (e.g. r<0).
+ - investigate the effect of different starting positions and positions of walkers relative to that starting position.
+
+ - add in the moment terms for the mcmc.
+
 
 
 ---- going forward ----
  - adding cross spectra
- - adding dust/other components besides synch
- - MCMC (once parameter fitting working)
