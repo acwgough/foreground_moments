@@ -1,9 +1,6 @@
 List of considerations concerning foreground moments project -- Ongoing.
 
 ----- w3j -----
- - possible the high ell w3j coefficients are not correct due to code inaccuracies
-        - could try a different package for w3j calculation and compare
-
  - the truncation effect of the w3j sum in the 1x1 term
         - this does not appear to have a large effect empirically
 
@@ -31,7 +28,6 @@ List of considerations concerning foreground moments project -- Ongoing.
  - investigate the effect of different starting positions and positions of walkers relative to that starting position.
 
  - add in the moment terms for the mcmc.
-
 
 
 ---- going forward ----
